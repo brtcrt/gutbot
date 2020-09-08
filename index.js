@@ -134,7 +134,7 @@ client.on("message", async message  => {
     if (message.content.startsWith("=level") && !isCooldown){
         let xpNeeded = nextLevel - curxp;
         isCooldown = true;
-        let levelMsg = new Discord.RichEmbed()
+        let levelMsg = new Discord.MessageEmbed()
         .setTitle(`Current stats for ${message.author.username}:            `)
         .setColor("#d89ada")
         .addField("Level: ", curlvl, true)
@@ -153,7 +153,7 @@ client.on("message", async message  => {
         let curlvlforOther = xp[message.mentions.users.first().id].level;
         let xpNeededforOther = nextLevelforOther - curxpforOther;
         isCooldown = true;
-        let levelMsgforOther = new Discord.RichEmbed()
+        let levelMsgforOther = new Discord.MessageEmbed()
         .setTitle(`Current stats for ${message.mentions.users.first().username}:            `)
         .setColor("#d89ada")
         .addField("Level: ", curlvlforOther, true)
@@ -272,11 +272,11 @@ function play(connection, message){
     var server = servers[message.guild.id];
 
     server.dispatcher = connection.play(ytdl(server.queue[0], {filter: "audioonly"}), {
-        volume: 0.5
+        volume: 1
     });
 
     server.queue.shift();
-    server.dispatcher.on("error", console.error);
+    server.dispatcher.on("error", console.log(error));
     server.dispatcher.on("end", function(){
         if (server.queue[0]) play(connection, message);
         else connection.disconnect();
@@ -342,7 +342,7 @@ client.on("message" , message => {
         
         //message.channel.send(person + " "+ message.content + "                                                 " + "All hail Özateş...")
 
-        let args = message.content.toLocaleLowerCase().substring(prefix.length).split(" ");
+        let args = message.content.substring(prefix.length).split(" ");
 
         switch (args[0]) {
             case "play":
