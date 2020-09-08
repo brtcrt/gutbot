@@ -276,8 +276,8 @@ function play(connection, message){
     });
 
     server.queue.shift();
-    server.dispatcher.on("error", console.log(error));
-    server.dispatcher.on("end", function(){
+    server.dispatcher.on("error", console.error());
+    server.dispatcher.on("finish", function(){
         if (server.queue[0]) play(connection, message);
         else connection.disconnect();
     });
@@ -366,7 +366,9 @@ client.on("message" , message => {
                 
                 server.queue.push(args[1]);
 
-                if (!message.member.voice.connection) message.member.voice.channel.join().then(connection => {
+                if (message.member.voice.connection){
+                    return;
+                }else if (!message.member.voice.connection) message.member.voice.channel.join().then(function(connection){
                     play(connection, message);
                 });
 
