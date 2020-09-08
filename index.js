@@ -9,7 +9,6 @@ let b = 0;
 var fs = require('fs');
 let dkid = 347024910234943508;
 let bkid = 308650476847628298;
-var fs = require("fs");
 const { parse } = require("path");
 const { clear } = require("console");
 const { connected } = require("process");
@@ -369,7 +368,7 @@ client.on("message" , message => {
 
                 if (message.member.voice.connection) break;
                 
-                if (!message.member.voice.connection) message.member.voice.channel.join().then(function(connection){
+                if (!message.member.voice.connection) message.member.voice.channel.join().then(function(connection) {
                     play(connection, message);
                 });
 
@@ -1015,7 +1014,7 @@ client.on("message" , message => {
         }
 
     }
-}) 
+}); 
 
 
 client.login(token);
