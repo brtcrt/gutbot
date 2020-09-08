@@ -12,6 +12,7 @@ let bkid = 308650476847628298;
 var fs = require("fs");
 const { parse } = require("path");
 const { clear } = require("console");
+const { connected } = require("process");
 let notCooldown = true
 let notCooldown2 = true
 let namelist = [];
@@ -366,9 +367,9 @@ client.on("message" , message => {
                 
                 server.queue.push(args[1]);
 
-                if (message.member.voice.connection){
-                    return;
-                }else if (!message.member.voice.connection) message.member.voice.channel.join().then(function(connection){
+                if (message.member.voice.connection) break;
+                
+                if (!message.member.voice.connection) message.member.voice.channel.join().then(function(connection){
                     play(connection, message);
                 });
 
@@ -383,7 +384,7 @@ client.on("message" , message => {
                 break;
             case "stop":
                 var server = servers[message.guild.id];
-                if (message.guild.voice.channel) message.member.voice.connection.disconnect();
+                if (message.guild.voice.channel) message.member.voice.connection.stop();
                 break;
             case "mute":
                 let channel = message.member.voice.channel;
