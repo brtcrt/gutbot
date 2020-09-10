@@ -38,6 +38,27 @@ client.once("ready", () => {
 
 client.on("message", async message  => { 
     if(message.author.bot) return;
+    if (message.content.startsWith("=someone")){
+        let allid = message.guild.members.cache.map(member => member.id);
+        let someone = allid[Math.floor(Math.random() * allid.length)];
+        console.log(`<@${someone}>`)
+        message.channel.send(`<@${someone}>`)
+        if (someone.id == 334798310261129216 || someone.id == 448152864003588106 || someone.id == 347024910234943508){
+            message.channel.send("https://cdn.discordapp.com/attachments/680770022913867816/746797267956007082/Scoob1.png").then(message.channel.send("https://cdn.discordapp.com/attachments/680770022913867816/746797283906945027/Scoob2.png"))
+        }
+    }
+
+
+    if(message.content.startsWith("=namechange")){
+        let cont = message.content.slice(1).split(" ");
+        let args = cont.slice(1);
+
+        let theGuy = message.mentions.members.first();
+
+        if (!message.guild.me.hasPermission('MANAGE_NICKNAMES')) return message.channel.send('I don\'t have permission to change your nickname!');
+        theGuy.setNickname(args[1]);
+
+    }
 
 //play music
     
@@ -53,8 +74,7 @@ client.on("message", async message  => {
         if (!message.member.hasPermission("MANAGE_MESSAGES")) return message.reply("You don't have the permissions.");
         if(isNaN(args[0])) return message.reply("How many messages do you want to clear?");
         if(parseInt(args[0]) > 99) return message.reply("You can't delete more than 99 messages at a time!");
-
-        const fetched = await message.channel.fetchMessages({limit: args[0]});
+        const fetched = await message.channel.messages.fetch({limit: args[0]});
         console.log(`Fetched ${fetched.size} messages.`)
 
         message.channel.bulkDelete(fetched).catch(error => message.reply(`Error occured: ${error}`));
@@ -91,7 +111,7 @@ client.on("message", async message  => {
 
     if(nextLevel <= xp[message.author.id].xp) {
         xp[message.author.id].level = curlvl + 1;
-        let lvlup = new Discord.RichEmbed()
+        let lvlup = new Discord.MessageEmbed()
         .setTitle("Level Up!")
         .setColor("#d89ada")
         .addField("New Level" , curlvl + 1)
@@ -394,14 +414,6 @@ client.on("message" , message => {
                 let channel2 = message.member.voice.channel;
                 let thePerson2 = message.mentions.members.first();
                 thePerson2.setMute(false)
-                break;
-            case "someone":
-                let someone = message.guild.members.random()
-                console.log(`<@${someone.id}>`)
-                message.channel.send(`<@${someone.id}>`)
-                if (someone.id == 334798310261129216 || someone.id == 448152864003588106 || someone.id == 347024910234943508){
-                    message.channel.send("https://cdn.discordapp.com/attachments/680770022913867816/746797267956007082/Scoob1.png").then(message.channel.send("https://cdn.discordapp.com/attachments/680770022913867816/746797283906945027/Scoob2.png"))
-                }
                 break;
             case "changename":
                 var member= message.mentions.members.first();
@@ -1014,7 +1026,7 @@ client.on("message" , message => {
         }
 
     }
-}); 
+});
 
 
 client.login(token);
