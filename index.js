@@ -128,7 +128,7 @@ client.on("message", async message  => {
         if(err) console.log(err)
     });
 
-    if(message.guild.id == 486163617507573760){
+    if(message.guild.id == 486163617507573760 && message.guild.me.hasPermission("MANAGE_ROLES")){
         if(curlvl >= 18 && message.author.id != 308650476847628298){
             var role = message.guild.roles.cache.find(role => role.name === "Y");
             message.member.roles.add(role);
@@ -211,7 +211,7 @@ client.on("message", async message  => {
     if (message.content.includes("31")){komedi[message.author.id].ob = curob + 1};
     if (message.content.includes("69")){komedi[message.author.id].ad = curad + 1};
 
-    if (message.guild.id == 486163617507573760){
+    if (message.guild.id == 486163617507573760  && message.guild.me.hasPermission("MANAGE_ROLES")){
         if (curob >= 69){
             var role = message.guild.roles.cache.find(role => role.name === "G҉A҉Y҉");
             message.member.roles.add(role);
