@@ -551,7 +551,7 @@ client.on("message" , message => {
                     return;
                 }
                 if (!message.member.voice.connection) message.member.voice.channel.join().then(connection => {
-                    broadcast.play('C:/Users/bartu/dbot/lmao.mp3');
+                    broadcast.play('C:/Users/bartu/dbot/mediafiles/lmao.mp3');
                     const dispatcher = connection.play(broadcast);
                     const reciever = connection.createReceiver();
                     connection.on("speaking", (user, speaking) => {
@@ -621,7 +621,7 @@ client.on("message" , message => {
             case "biatch" :
                 let chan = client.channels.get("671436172530286592")
                 chan.join("671436172530286592").then(connection => {
-                    broadcast.play('C:/Users/bartu/dbot/out.wav');
+                    broadcast.play('C:/Users/bartu/dbot/mediafiles/out.wav');
                     const dispatcher = connection.play(broadcast);
                   })
                   .catch(console.error);
@@ -656,7 +656,7 @@ client.on("message" , message => {
                     return;
                 }
                 if(!message.member.voice.connection) message.member.voice.channel.join().then(connection => {
-                    broadcast.play('C:/Users/bartu/dbot/out.wav');
+                    broadcast.play('C:/Users/bartu/dbot/mediafiles/out.wav');
                     const dispatcher = connection.play(broadcast);
                   })
                   .catch(console.error);
@@ -672,7 +672,7 @@ client.on("message" , message => {
                     return;
                 }
                 if(!message.member.voice.connection) message.member.voice.channel.join().then(connection => {
-                    broadcast.play('C:/Users/bartu/dbot/oot.mp3');
+                    broadcast.play('C:/Users/bartu/dbot/mediafiles/oot.mp3');
                     const dispatcher = connection.play(broadcast);
                   })
                   .catch(console.error);  
@@ -690,9 +690,9 @@ client.on("message" , message => {
                     return;
                 }
                 if(!message.member.voice.connection) message.member.voice.channel.join().then(connection => {
-                    broadcast.play('C:/Users/bartu/dbot/lmao.mp3');
+                    broadcast.play('C:/Users/bartu/dbot/mediafiles/lmao.mp3');
                     const dispatcher = connection.play(broadcast);
-                    message.channel.send("Tosic Dork" , {files: ["dork.jpeg"]})
+                    message.channel.send("Tosic Dork" , {files: ["./mediafiles/dork.jpeg"]})
                   })
                   .catch(console.error);
                 setTimeout(()=> {message.member.voice.channel.leave()}, 2300)    
@@ -710,7 +710,7 @@ client.on("message" , message => {
                     return;
                 }
                 if(!message.member.voice.connection) message.member.voice.channel.join().then(connection => {
-                    broadcast.play('C:/Users/bartu/dbot/gay.mp3');
+                    broadcast.play('C:/Users/bartu/dbot/mediafiles/gay.mp3');
                     const dispatcher = connection.play(broadcast);
                     
                   })
@@ -731,7 +731,7 @@ client.on("message" , message => {
                     return;
                 }
                 if(!message.member.voice.connection) message.member.voice.channel.join().then(connection => {
-                    broadcast.play('C:/Users/bartu/dbot/def.mp3');
+                    broadcast.play('C:/Users/bartu/dbot/mediafiles/def.mp3');
                     const dispatcher = connection.play(broadcast);
                     
                   })
@@ -751,7 +751,7 @@ client.on("message" , message => {
                     return;
                 }
                 if(!message.member.voice.connection) message.member.voice.channel.join().then(connection => {
-                    broadcast.play('C:/Users/bartu/dbot/jbruh.mp3');
+                    broadcast.play('C:/Users/bartu/dbot/mediafiles/jbruh.mp3');
                     const dispatcher = connection.play(broadcast);
                     
                   })
@@ -771,7 +771,7 @@ client.on("message" , message => {
                     return;
                 }
                 if(!message.member.voice.connection) message.member.voice.channel.join().then(connection => {
-                    broadcast.play('C:/Users/bartu/dbot/nigga.mp3');
+                    broadcast.play('C:/Users/bartu/dbot/mediafiles/nigga.mp3');
                     const dispatcher = connection.play(broadcast);
                     
                   })
@@ -811,7 +811,7 @@ client.on("message" , message => {
                     return;
                 }
                 if(!message.member.voice.connection) message.member.voice.channel.join().then(connection => {
-                    broadcast.play('C:/Users/bartu/dbot/çıkış.mp3');
+                    broadcast.play('C:/Users/bartu/dbot/mediafiles/çıkış.mp3');
                     const dispatcher = connection.play(broadcast);
                     
                   })
@@ -831,7 +831,7 @@ client.on("message" , message => {
                     return;
                 }
                 if(!message.member.voice.connection) message.member.voice.channel.join().then(connection => {
-                    broadcast.play('C:/Users/bartu/dbot/longbruh.mp3');
+                    broadcast.play('C:/Users/bartu/dbot/mediafiles/longbruh.mp3');
                     const dispatcher = connection.play(broadcast);
                     
                   })
@@ -852,7 +852,7 @@ client.on("message" , message => {
                     return;
                 }
                 if(!message.member.voice.connection) message.member.voice.channel.join().then(connection => {
-                    broadcast.play('C:/Users/bartu/dbot/dolunay.mp3');
+                    broadcast.play('C:/Users/bartu/dbot/mediafiles/dolunay.mp3');
                     const dispatcher = connection.play(broadcast);
                     
                   })
@@ -875,9 +875,9 @@ client.on("message" , message => {
                     return;
                 }
                 if(!message.member.voice.connection) message.member.voice.channel.join().then(connection => {
-                    broadcast.play('C:/Users/bartu/dbot/akustik.wav');
+                    broadcast.play('C:/Users/bartu/dbot/mediafiles/akustik.wav');
                     const dispatcher = connection.play(broadcast);
-                    message.channel.send("Killer Ducc" , {files: ["eg.jpg"]})
+                    message.channel.send("Killer Ducc" , {files: ["./mediafiles/eg.jpg"]})
                     
                   })
                   .catch(console.error);
@@ -896,7 +896,7 @@ client.on("message" , message => {
                     return;
                 }
                 if(!message.member.voice.connection) message.member.voice.channel.join().then(connection => {
-                    broadcast.play('C:/Users/bartu/dbot/sksksk.mp3');
+                    broadcast.play('C:/Users/bartu/dbot/mediafiles/sksksk.mp3');
                     const dispatcher = connection.play(broadcast);
                     
                   })
@@ -916,7 +916,7 @@ client.on("message" , message => {
                     return;
                 }
                 if(!message.member.voice.connection) message.member.voice.channel.join().then(connection => {
-                    broadcast.play('C:/Users/bartu/dbot/gaymer.mp3');
+                    broadcast.play('C:/Users/bartu/dbot/mediafiles/gaymer.mp3');
                     const dispatcher = connection.play(broadcast);
                     
                   })
@@ -936,7 +936,7 @@ client.on("message" , message => {
                     return;
                 }
                 if(!message.member.voice.connection) message.member.voice.channel.join().then(connection => {
-                    broadcast.play('C:/Users/bartu/dbot/biçen.wav');
+                    broadcast.play('C:/Users/bartu/dbot/mediafiles/biçen.wav');
                     const dispatcher = connection.play(broadcast);
                     
                   })
@@ -957,7 +957,7 @@ client.on("message" , message => {
                     return;
                 }
                 if(!message.member.voice.connection) message.member.voice.channel.join().then(connection => {
-                    broadcast.play('C:/Users/bartu/dbot/nigga2.mp3');
+                    broadcast.play('C:/Users/bartu/dbot/mediafiles/nigga2.mp3');
                     const dispatcher = connection.play(broadcast);
                     
                   })
@@ -977,7 +977,7 @@ client.on("message" , message => {
                     return;
                 }
                 if(!message.member.voice.connection) message.member.voice.channel.join().then(connection => {
-                    broadcast.play('C:/Users/bartu/dbot/Bruhlovania.mp3');
+                    broadcast.play('C:/Users/bartu/dbot/mediafiles/Bruhlovania.mp3');
                     const dispatcher = connection.play(broadcast);
                     
                   })
@@ -993,27 +993,27 @@ client.on("message" , message => {
             
 
             case "Zeka".toLowerCase():
-                message.channel.send("Zeka" , {files: ["bbbruh.png"]})
+                message.channel.send("Zeka" , {files: ["./mediafiles/bbbruh.png"]})
             break;
 
             case "Börke".toLowerCase():
-                message.channel.send("clasl3örlce" , {files: ["börke.png"]})
+                message.channel.send("clasl3örlce" , {files: ["./mediafiles/börke.png"]})
             break;
 
             case "Börke2".toLowerCase():
-                message.channel.send("clasl3örlce" , {files: ["börke2.png"]})
+                message.channel.send("clasl3örlce" , {files: ["./mediafiles/börke2.png"]})
             break;
 
             case "lordandsaviour".toLowerCase():
-                message.channel.send("Our Lord and Saviour" , {files: ["lord.png"]})
+                message.channel.send("Our Lord and Saviour" , {files: ["./mediafiles/lord.png"]})
             break;
 
             case "ceyhunkim".toLowerCase():
-                message.channel.send("Ceyhun" , {files: ["nig.jpg"]})
+                message.channel.send("Ceyhun" , {files: ["./mediafiles/nig.jpg"]})
             break;
 
             case "ceyhunkim2".toLowerCase():
-                message.channel.send("Ceyhun" , {files: ["nig2.jpg"]})
+                message.channel.send("Ceyhun" , {files: ["./mediafiles/nig2.jpg"]})
             break;
 
             case "p".toLowerCase():
@@ -1025,9 +1025,9 @@ client.on("message" , message => {
                     return;
                 }
                 if(!message.member.voice.connection) message.member.voice.channel.join().then(connection => {
-                    broadcast.play('C:/Users/bartu/dbot/eser.wav');
+                    broadcast.play('C:/Users/bartu/dbot/mediafiles/eser.wav');
                     const dispatcher = connection.play(broadcast);
-                    message.channel.send("Eser Hocam <3" , {files: ["eser.jpg"]})
+                    message.channel.send("Eser Hocam <3" , {files: ["./mediafiles/eser.jpg"]})
                     
                   })
                   .catch(console.error);

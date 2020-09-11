@@ -118,3 +118,7 @@ dist
 /node_modules
 auth.*
 config.*
+/mediafiles
+/recordings
+log.*
+package-lock.*
