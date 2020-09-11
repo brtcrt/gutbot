@@ -116,8 +116,8 @@ dist
 .pnp.*
 
 /node_modules
-auth.*
-config.*
+/auth.json
+/config.json
 /mediafiles
 /recordings
 log.*
