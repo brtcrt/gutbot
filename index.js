@@ -34,6 +34,10 @@ client.once("ready", () => {
 })
 
 
+client.on("guildMemberAdd", newMember => {
+    var role = newMember.guild.roles.cache.find(role => role.id === "719469768654061579");
+    newMember.roles.add(role);
+})
 
 
 client.on("message", async message  => { 
@@ -124,30 +128,31 @@ client.on("message", async message  => {
         if(err) console.log(err)
     });
 
-    if(curlvl >= 18 && message.author.id != 308650476847628298){
-        var role = message.guild.roles.cache.find(role => role.name === "Y");
-        message.member.roles.add(role);
-    } else if(curlvl >= 15 && message.author.id != 308650476847628298){
-        var role = message.guild.roles.cache.find(role => role.name === "A");
-        message.member.roles.add(role);
-    } else if(curlvl >= 12 && message.author.id != 308650476847628298){
-        var role = message.guild.roles.cache.find(role => role.name === "G");
-        message.member.roles.add(role);
-    } else if(curlvl >= 9 && message.author.id != 308650476847628298){
-        var role = message.guild.roles.cache.find(role => role.name === "H");
-        message.member.roles.add(role);
-    } else if(curlvl >= 6 && message.author.id != 308650476847628298){
-        var role = message.guild.roles.cache.find(role => role.name === "U");
-        message.member.roles.add(role);
-    } else if(curlvl >= 3 && message.author.id != 308650476847628298){
-        var role = message.guild.roles.cache.find(role => role.name === "R");
-        message.member.roles.add(role);
-    } else if(curlvl >= 1 && message.author.id != 308650476847628298){
-        var role = message.guild.roles.cache.find(role => role.name === "B");
-        message.member.roles.add(role);
+    if(message.guild.id == 486163617507573760){
+        if(curlvl >= 18 && message.author.id != 308650476847628298){
+            var role = message.guild.roles.cache.find(role => role.name === "Y");
+            message.member.roles.add(role);
+        } else if(curlvl >= 15 && message.author.id != 308650476847628298){
+            var role = message.guild.roles.cache.find(role => role.name === "A");
+            message.member.roles.add(role);
+        } else if(curlvl >= 12 && message.author.id != 308650476847628298){
+            var role = message.guild.roles.cache.find(role => role.name === "G");
+            message.member.roles.add(role);
+        } else if(curlvl >= 9 && message.author.id != 308650476847628298){
+            var role = message.guild.roles.cache.find(role => role.name === "H");
+            message.member.roles.add(role);
+        } else if(curlvl >= 6 && message.author.id != 308650476847628298){
+            var role = message.guild.roles.cache.find(role => role.name === "U");
+            message.member.roles.add(role);
+        } else if(curlvl >= 3 && message.author.id != 308650476847628298){
+            var role = message.guild.roles.cache.find(role => role.name === "R");
+            message.member.roles.add(role);
+        } else if(curlvl >= 1 && message.author.id != 308650476847628298){
+            var role = message.guild.roles.cache.find(role => role.name === "B");
+            message.member.roles.add(role);
+        }
+
     }
-
-
     
 
 
@@ -445,12 +450,14 @@ client.on("message" , message => {
                 break;
 
             case "kick":
+                if (message.content.includes("@everyone")) return message.reply("You can't @everyone")
+                if (message.content.includes("@here")) return message.reply("You can't @here")
                 if(notCooldown){
                     backTime = (Math.floor(Math.random()*25)+1)*60000
                     console.log(backTime)
                     notCooldown = false
                     var member= message.mentions.members.first();
-                    message.channel.send("Vote to kick " + member)
+                    message.channel.send(`Vote to kick <@${member.id}>`)
                     message.channel.send("Type 'kick' to vote for the member to be kicked, and type 'stay' to vote for the member to stay. You have 30 seconds and it starts now.")
                     client.on("message", message => {
                         if(namelist.includes(message.author.id) == false){
