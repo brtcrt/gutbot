@@ -211,16 +211,17 @@ client.on("message", async message  => {
     if (message.content.includes("31")){komedi[message.author.id].ob = curob + 1};
     if (message.content.includes("69")){komedi[message.author.id].ad = curad + 1};
 
-    if (curob >= 69){
-        var role = message.guild.roles.cache.find(role => role.name === "G҉A҉Y҉");
-        message.member.roles.add(role);
-    };
-
-    if (curad >= 31){
-        var role = message.guild.roles.cache.find(role => role.name === "𝐹𝓊𝓃𝓃𝓎");
-        message.member.roles.add(role);
-    };
-
+    if (message.guild.id == 486163617507573760){
+        if (curob >= 69){
+            var role = message.guild.roles.cache.find(role => role.name === "G҉A҉Y҉");
+            message.member.roles.add(role);
+        };
+    
+        if (curad >= 31){
+            var role = message.guild.roles.cache.find(role => role.name === "𝐹𝓊𝓃𝓃𝓎");
+            message.member.roles.add(role);
+        };
+    }
     fs.writeFile("./3169.json", JSON.stringify(komedi), (err)=>{
         if(err) console.log(err)
     });
@@ -450,9 +451,13 @@ client.on("message" , message => {
                 break;
 
             case "kick":
+                if(message.author.bot) return;
                 if (message.content.includes("@everyone")) return message.reply("You can't @everyone")
                 if (message.content.includes("@here")) return message.reply("You can't @here")
+                if(!message.mentions.members.first()) return message.reply("You didn't @ a person.");
                 if(notCooldown){
+                    if(message.author.bot) return;
+                    if(!message.mentions.members.first()) return message.reply("You didn't @ a person.");
                     backTime = (Math.floor(Math.random()*25)+1)*60000
                     console.log(backTime)
                     notCooldown = false
@@ -460,6 +465,7 @@ client.on("message" , message => {
                     message.channel.send(`Vote to kick <@${member.id}>`)
                     message.channel.send("Type 'kick' to vote for the member to be kicked, and type 'stay' to vote for the member to stay. You have 30 seconds and it starts now.")
                     client.on("message", message => {
+                        if(message.author.bot) return;
                         if(namelist.includes(message.author.id) == false){
                             let msg = message.content.toLowerCase()
                             //Ben == mal
