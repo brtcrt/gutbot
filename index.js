@@ -863,9 +863,7 @@ client.on("message" , message => {
             break;
 
             case "öl".toLowerCase():
-                if (message.member.voice.connection){
-                    message.member.voice.channel.leave();
-                }
+                message.member.voice.channel.leave()
                 break;
 
 
