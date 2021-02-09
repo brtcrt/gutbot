@@ -118,7 +118,7 @@ dist
 /node_modules
 /auth.json
 /config.json
-/mediafiles
 /recordings
+/xp.*
 log.*
 package-lock.*

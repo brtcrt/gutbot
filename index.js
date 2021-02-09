@@ -1,11 +1,17 @@
 const Discord = require("discord.js");
-const { prefix , token } = require("./config.json");
+const { token } = require("./config.json");
 let xp = require("./xp.json");
+let newxp = require("./exp.json")
 let komedi = require("./3169.json");
+let prefixes = require("./prefixes.json");
+let links = require("./links.json");
 const client = new Discord.Client () ;
 const ytdl = require("ytdl-core");
 let i = 0;
 let b = 0;
+client.db = require("quick.db");
+client.request = new (require("rss-parser"))();
+// const Canvas = require('canvas');
 var fs = require('fs');
 let dkid = 347024910234943508;
 let bkid = 308650476847628298;
@@ -16,8 +22,16 @@ let notCooldown = true
 let notCooldown2 = true
 let namelist = [];
 let namelist2 = [];
+let someIndex
 let votes = 0;
 let isCooldown = false;
+//let channel_id = "680769162293018918"; 
+let message_id = "790982421410873394";
+let voteKicks = 0
+let voteStays = 0
+let curprefix = "="
+let d
+
 
 function generateOutputFile(channel, member) {
     const fileName = `./kayıtlar/${channel.id}-${member.id}-${Date.now()}.pcm`;
@@ -28,11 +42,54 @@ function StopCooldown(){
     isCooldown = false
 }
 
+//yoinked yt code
+
+//yoinked yt code end
+
+
+//client.on('guildMemberAdd', async member => {
+//    console.log("Biri geldi.")
+//	const channel = member.guild.channels.cache.find(ch => ch.id == '693412472228413511');
+//	if (!channel) return;
+//
+//	const canvas = Canvas.createCanvas(700, 250);
+//	const ctx = canvas.getContext('2d');
+//
+//	const background = await Canvas.loadImage('./mediafiles/wallpaper.jpg');
+//	ctx.drawImage(background, 0, 0, canvas.width, canvas.height);
+//
+//	ctx.strokeStyle = '#74037b';
+//	ctx.strokeRect(0, 0, canvas.width, canvas.height);
+//
+//	// Slightly smaller text placed above the member's display name
+//	ctx.font = '28px sans-serif';
+//	ctx.fillStyle = '#ffffff';
+//	ctx.fillText('Sa, as', canvas.width / 2.5, canvas.height / 3.5);
+//
+//	// Add an exclamation point here and below
+//	ctx.font = applyText(canvas, `${member.displayName}!`);
+//	ctx.fillStyle = '#ffffff';
+//	ctx.fillText(`${member.displayName}!`, canvas.width / 2.5, canvas.height / 1.8);
+//
+//	ctx.beginPath();
+//	ctx.arc(125, 125, 100, 0, Math.PI * 2, true);
+//	ctx.closePath();
+//	ctx.clip();
+//
+//	const avatar = await Canvas.loadImage(member.user.displayAvatarURL({ format: 'jpg' }));
+//	ctx.drawImage(avatar, 25, 25, 200, 200);
+//
+//	const attachment = new Discord.MessageAttachment(canvas.toBuffer(), 'welcome-image.png');
+//
+//    member.permissions.add(member.guild.roles.cache.find(r => r.id == "792820466531565588"))
+//    channel.send(`Sa as ${member}!`, attachment);
+//});
+
+
 client.once("ready", () => {
     console.log("Ready!")
-    client.user.setActivity("=Bot???")
+    client.user.setActivity("=bot?", {type: "COMPETING"})
 })
-
 
 client.on("guildMemberAdd", newMember => {
     var role = newMember.guild.roles.cache.find(role => role.id === "719469768654061579");
@@ -42,255 +99,443 @@ client.on("guildMemberAdd", newMember => {
 
 client.on("message", async message  => { 
     if(message.author.bot) return;
-    if (message.content.startsWith("=someone")){
-        let allid = message.guild.members.cache.map(member => member.id);
-        let someone = allid[Math.floor(Math.random() * allid.length)];
-        console.log(`<@${someone}>`)
-        message.channel.send(`<@${someone}>`)
-        if (someone.id == 334798310261129216 || someone.id == 448152864003588106 || someone.id == 347024910234943508){
-            message.channel.send("https://cdn.discordapp.com/attachments/680770022913867816/746797267956007082/Scoob1.png").then(message.channel.send("https://cdn.discordapp.com/attachments/680770022913867816/746797283906945027/Scoob2.png"))
+
+    //custom prefix system start
+    if(!prefixes[message.guild.id]){
+        prefixes[message.guild.id] = {
+            prefix: "="
         }
+        fs.writeFile("./prefixes.json", JSON.stringify(prefixes), (err)=>{
+            if(err) console.log(err)
+        });
     }
+    curprefix = prefixes[message.guild.id].prefix
+    if(message.content.startsWith(curprefix+"changePrefix")){
+        let newprefix = message.content.slice(1).split(" ");
+        prefixes[message.guild.id].prefix = newprefix[1]
+        fs.writeFile("./prefixes.json", JSON.stringify(prefixes), (err)=>{
+            if(err) console.log(err)
+        });
+        if(prefixes[message.guild.id].prefix == newprefix[1]){
+            message.reply('Command prefix is now "' + newprefix[1]+'"')
+        } else message.reply("Something went wrong.")
+    }
+    //custom prefix system end
 
-
-    if(message.content.startsWith("=namechange")){
+    //change name
+    if(message.content.startsWith(curprefix+"changename")){
         let cont = message.content.slice(1).split(" ");
         let args = cont.slice(1);
 
         let theGuy = message.mentions.members.first();
-
+        if(!theGuy)return
         if (!message.guild.me.hasPermission('MANAGE_NICKNAMES')) return message.channel.send('I don\'t have permission to change your nickname!');
         theGuy.setNickname(args[1]);
 
+    };
+    //change name end
+
+//dc someone
+    if(message.content.startsWith(curprefix+"disconnect")){
+        let vcUser = message.mentions.members.first();
+        if (!vcUser) return
+        await message.guild.channels.create("voice-kick",{
+            type:  "voice",
+            permissionOverwrites: [{ //Set permission overwrites
+                id: message.guild.id,
+                allow: ['VIEW_CHANNEL'],
+            }]
+        });
+        await vcUser.voice.setChannel(message.guild.channels.cache.find(r => r.name === "voice-kick"));
+        message.guild.channels.cache.find(r => r.name === "voice-kick").delete();
     }
 
-//play music
-    
-//play music end
 
+
+//dc someone end
+
+//votekick
+
+    if(message.content.startsWith(curprefix+"votekick")){
+        if(message.author.bot) return;
+        if (message.content.includes("@everyone")) return message.reply("You can't @everyone")
+        if (message.content.includes("@here")) return message.reply("You can't @here")
+        if(!message.mentions.members.first()) return message.reply("You didn't @ a person.");
+        if(notCooldown){
+            notCooldown = false
+            var member = message.mentions.members.first();
+            const kickMsg = await message.channel.send(`Vote to kick <@${member.id}>`)
+            await kickMsg.react("✅")
+            await kickMsg.react("⛔")
+            await message.channel.send("React with ✅ for the member to get kicked. React with ⛔ for the member to stay.")
+            await setTimeout(makeDecision, 30000) 
+            client.on('messageReactionAdd', async (reaction, person) => {
+                try {
+                    await reaction.fetch();
+                } catch (error) {
+                    console.error('Something went wrong when fetching the message: ', error);
+                    return;
+                };
+            
+                if (reaction.emoji.name == '✅') {
+                    if (reaction.message.id === kickMsg.id){
+                        voteKicks += 1;
+                        console.log("Someone voted yes.")
+                    }
+                } else if (reaction.emoji.name == '⛔') {
+                    if (reaction.message.id === kickMsg.id){
+                        voteStays += 1;
+                        console.log("Someone voted no.")
+                    }
+                }
+            
+            });
+            client.on('messageReactionRemove', async (reaction, person) => {
+                try {
+                    await reaction.fetch();
+                } catch (error) {
+                    console.error('Something went wrong when fetching the message: ', error);
+                    return;
+                };
+            
+                if (reaction.emoji.name == '✅') {
+                    if (reaction.message.id === kickMsg.id){
+                        voteKicks -= 1;
+                        console.log("Someone un-voted yes.")
+                    }
+                } else if (reaction.emoji.name == '⛔') {
+                    if (reaction.message.id === kickMsg.id){
+                        voteStays -= 1;
+                        console.log("Someone un-voted no.")
+                    }
+                }
+            
+            });
+            
+            client.on('message', message => {
+                return; //For now, gotta code more stuff later
+            });
+            
+            async function makeDecision(){
+                if(voteKicks > voteStays){
+                    message.channel.send(`Results: kick--> ${voteKicks} stay--> ${voteStays}`)
+                    message.channel.send("Begone!")
+                    member.kick()
+                    notCooldown = true
+                    voteKicks = 0
+                    voteStays = 0
+                } else{
+                    message.channel.send(`Results: kick--> ${voteKicks} stay--> ${voteStays}`)
+                    message.channel.send("You stay...")
+                    notCooldown = true
+                    voteKicks = 0
+                    voteStays = 0
+                }
+            }
+        }
+    }
+
+//votekick end
 
 //delete msg
-
-
-    if (message.content.startsWith("=clear")){
+    if (message.content.startsWith(curprefix+"clear")){
         let cont = message.content.slice(1).split(" ");
         let args = cont.slice(1);
         if (!message.member.hasPermission("MANAGE_MESSAGES")) return message.reply("You don't have the permissions.");
         if(isNaN(args[0])) return message.reply("How many messages do you want to clear?");
-        if(parseInt(args[0]) > 99) return message.reply("You can't delete more than 99 messages at a time!");
-        const fetched = await message.channel.messages.fetch({limit: args[0]});
+        var fetched
+        var amountofmsgs = 0
+        while(args[0] > 99){
+                fetched = await message.channel.messages.fetch({limit: 99});
+                console.log(`Fetched ${fetched.size} messages.`)
+                message.channel.bulkDelete(fetched).catch(error => message.reply(`Error occured: ${error}`));
+                args[0] = args[0] - 99
+                amountofmsgs += 99
+        }
+        fetched = await message.channel.messages.fetch({limit: args[0]});
         console.log(`Fetched ${fetched.size} messages.`)
-
+        amountofmsgs += fetched.size
         message.channel.bulkDelete(fetched).catch(error => message.reply(`Error occured: ${error}`));
+        message.channel.send(`Deleted ${amountofmsgs} messages.`)
+
+
+
+    }
+
+//delete msg end
+
+//new level sytem 
+
+
+    if (!newxp[message.guild.id] && !message.author.bot){
+        let user = {
+            exp: 1,
+            lvl: 1
+        }
+        newxp[message.guild.id] = [
+            
+        ]
+        newxp[message.guild.id].push(message.author.id)     
+        newxp[message.guild.id].push(user)
+    };
+    someIndex = newxp[message.guild.id].indexOf(message.author.id);
+    if(!newxp[message.guild.id][someIndex+1].exp){
+        let user = {
+            exp: 1,
+            lvl: 1
+        }
+        newxp[message.guild.id].push(message.author.id)     
+        newxp[message.guild.id].push(user)
     }
 
 
+    let curXP = newxp[message.guild.id][someIndex+1].exp;
+    let curLVL = newxp[message.guild.id][someIndex+1].lvl;
+    let XPreq = curLVL * 20;
+
+
+    newxp[message.guild.id][someIndex+1].exp += 1;
+
+    if(XPreq <= newxp[message.guild.id][someIndex+1].exp){
+        newxp[message.guild.id][someIndex+1].lvl += 1
+        let lvlupMSG = new Discord.MessageEmbed()
+        .setTitle("Level Up!")
+        .setColor("#d89ada")
+        .addField(`**${message.author.username}** just leveled up to ${curLVL + 1}`, ":)", true)
+        .setThumbnail(message.author.displayAvatarURL());
+
+        message.channel.send(lvlupMSG)
+    };
+
+    fs.writeFile("./exp.json", JSON.stringify(newxp, null, 4), (err)=>{
+        if(err) console.log(err);
+    });
+
+    if (message.content.startsWith(curprefix+"level") && !isCooldown){
+        if(!message.mentions.users.first()){
+            let XPNeeded = XPreq - curXP;
+            isCooldown = true;
+            let levelupMsg = new Discord.MessageEmbed()
+            .setTitle(`Current stats for **${message.author.username}**:            `)
+            .setColor("#d89ada")
+            .addField("Level: ", curLVL, true)
+            .addField("XP: ", curXP, true)
+            .setThumbnail(message.author.displayAvatarURL())
+            .setFooter(`${XPNeeded} xp until level up.`);
+
+            setTimeout(StopCooldown, 100)
+            message.channel.send(levelupMsg)//.then(msg => {msg.delete(200000)})
+        } else{
+            let otherId = (message.mentions.users.first().id)
+            let someIndexforOther = newxp[message.guild.id].indexOf(otherId);
+            let XPNeededforOther = (20*newxp[message.guild.id][someIndexforOther+1].lvl) - (newxp[message.guild.id][someIndexforOther+1].exp);
+            let curXPforOther = newxp[message.guild.id][someIndexforOther+1].exp;
+            let curLVLforOther = newxp[message.guild.id][someIndexforOther+1].lvl;
+            isCooldown = true;
+            let levelofMsgforOther = new Discord.MessageEmbed()
+            .setTitle(`Current stats for **${message.mentions.users.first().username}**:            `)
+            .setColor("#d89ada")
+            .addField("Level: ", curLVLforOther, true)
+            .addField("XP: ", curXPforOther, true)
+            .setThumbnail(message.mentions.users.first().displayAvatarURL())
+            .setFooter(`${XPNeededforOther} xp until ${message.mentions.users.first().username} levels up.`);
     
-//delete msg end
+            setTimeout(StopCooldown, 100)
+            message.channel.send(levelofMsgforOther)
+        };
+
+
+    }
+
+
+//new level system end
 
 
 //lvl system
 
 
-    if (!xp[message.author.id] && !message.author.bot){
-        xp[message.author.id] = {
+    //if (!xp[message.author.id] && !message.author.bot){
+    //    xp[message.author.id] = {
+//
+    //        xp: 0,
+    //        level: 1
+    //    }
+    //};
+//
+//
+//
+    //let curxp = xp[message.author.id].xp;
+    //let curlvl = xp[message.author.id].level;
+    //let nextLevel = 500 * (Math.pow(2,  xp[message.author.id].level) - 1);
+    //let msgreq = Math.round(Math.pow(xp[message.author.id].level, 2) * 10); 
+    //let xpAdd = Math.round(nextLevel/msgreq);
+    //console.log(xpAdd);
+//
+    //xp[message.author.id].xp = curxp + xpAdd;
+//
+//
+//
+    //if(nextLevel <= xp[message.author.id].xp) {
+    //    xp[message.author.id].level = curlvl + 1;
+    //    let lvlup = new Discord.MessageEmbed()
+    //    .setTitle("Level Up!")
+    //    .setColor("#d89ada")
+    //    .addField("New Level" , curlvl + 1)
+    //    .setThumbnail(message.author.displayAvatarURL);
+//
+    //    message.channel.send(lvlup)//.then(msg => {msg.delete(10000)});
+//
+    //}
+    //fs.writeFile("./xp.json", JSON.stringify(xp), (err)=>{
+    //    if(err) console.log(err)
+    //});
 
-            xp: 0,
-            level: 1
-        }
-    };
-
-
-
-    let curxp = xp[message.author.id].xp;
-    let curlvl = xp[message.author.id].level;
-    let nextLevel = 500 * (Math.pow(2,  xp[message.author.id].level) - 1);
-    let msgreq = Math.round(Math.pow(xp[message.author.id].level, 2) * 10); 
-    let xpAdd = Math.round(nextLevel/msgreq);
-    console.log(xpAdd);
-
-    xp[message.author.id].xp = curxp + xpAdd;
-
-
-
-    if(nextLevel <= xp[message.author.id].xp) {
-        xp[message.author.id].level = curlvl + 1;
-        let lvlup = new Discord.MessageEmbed()
-        .setTitle("Level Up!")
-        .setColor("#d89ada")
-        .addField("New Level" , curlvl + 1)
-        .setThumbnail(message.author.displayAvatarURL);
-
-        message.channel.send(lvlup)//.then(msg => {msg.delete(10000)});
-
-    }
-    fs.writeFile("./xp.json", JSON.stringify(xp), (err)=>{
-        if(err) console.log(err)
-    });
-
-    if(message.guild.id == 486163617507573760 && message.guild.me.hasPermission("MANAGE_ROLES")){
-        if(curlvl >= 18 && message.author.id != 308650476847628298){
-            var role = message.guild.roles.cache.find(role => role.name === "Y");
-            message.member.roles.add(role);
-        } else if(curlvl >= 15 && message.author.id != 308650476847628298){
-            var role = message.guild.roles.cache.find(role => role.name === "A");
-            message.member.roles.add(role);
-        } else if(curlvl >= 12 && message.author.id != 308650476847628298){
-            var role = message.guild.roles.cache.find(role => role.name === "G");
-            message.member.roles.add(role);
-        } else if(curlvl >= 9 && message.author.id != 308650476847628298){
-            var role = message.guild.roles.cache.find(role => role.name === "H");
-            message.member.roles.add(role);
-        } else if(curlvl >= 6 && message.author.id != 308650476847628298){
-            var role = message.guild.roles.cache.find(role => role.name === "U");
-            message.member.roles.add(role);
-        } else if(curlvl >= 3 && message.author.id != 308650476847628298){
-            var role = message.guild.roles.cache.find(role => role.name === "R");
-            message.member.roles.add(role);
-        } else if(curlvl >= 1 && message.author.id != 308650476847628298){
-            var role = message.guild.roles.cache.find(role => role.name === "B");
-            message.member.roles.add(role);
-        }
-
-    }
-    
-
-
-    if (message.content.startsWith("=level") && !isCooldown){
-        let xpNeeded = nextLevel - curxp;
-        isCooldown = true;
-        let levelMsg = new Discord.MessageEmbed()
-        .setTitle(`Current stats for ${message.author.username}:            `)
-        .setColor("#d89ada")
-        .addField("Level: ", curlvl, true)
-        .addField("XP: ", curxp, true)
-        .setThumbnail(message.author.displayAvatarURL)
-        .setFooter(`${xpNeeded} xp until level up.`, "https://cdn.discordapp.com/attachments/680770022913867816/750711622712033391/nigga_4.jpg");
-
-        setTimeout(StopCooldown, 100)
-        message.channel.send(levelMsg)//.then(msg => {msg.delete(200000)})
-
-    }
-
-    if (message.content.startsWith("=forlevel") && !isCooldown){
-        let nextLevelforOther = 500 * (Math.pow(2,  xp[message.mentions.users.first().id].level) - 1);
-        let curxpforOther = xp[message.mentions.users.first().id].xp;
-        let curlvlforOther = xp[message.mentions.users.first().id].level;
-        let xpNeededforOther = nextLevelforOther - curxpforOther;
-        isCooldown = true;
-        let levelMsgforOther = new Discord.MessageEmbed()
-        .setTitle(`Current stats for ${message.mentions.users.first().username}:            `)
-        .setColor("#d89ada")
-        .addField("Level: ", curlvlforOther, true)
-        .addField("XP: ", curxpforOther, true)
-        .setThumbnail(message.mentions.users.first().displayAvatarURL)
-        .setFooter(`${xpNeededforOther} xp until ${message.mentions.users.first().username} levels up.`, "https://cdn.discordapp.com/attachments/680770022913867816/750711622712033391/nigga_4.jpg");
-
-        setTimeout(StopCooldown, 100)
-        message.channel.send(levelMsgforOther)//.then(msg => {msg.delete(200000)})
-
-    }
+    //if(message.guild.id == 486163617507573760 && message.guild.me.hasPermission("MANAGE_ROLES")){
+    //    if(curlvl >= 18 && message.author.id != 308650476847628298){
+    //        var role = message.guild.roles.cache.find(role => role.name === "Y");
+    //        message.member.roles.add(role);
+    //    }  
+    //    if(curlvl >= 15 && message.author.id != 308650476847628298){
+    //        var role = message.guild.roles.cache.find(role => role.name === "A");
+    //        message.member.roles.add(role);
+    //    }  
+    //    if(curlvl >= 12 && message.author.id != 308650476847628298){
+    //        var role = message.guild.roles.cache.find(role => role.name === "G");
+    //        message.member.roles.add(role);
+    //    }  
+    //    if(curlvl >= 9 && message.author.id != 308650476847628298){
+    //        var role = message.guild.roles.cache.find(role => role.name === "H");
+    //        message.member.roles.add(role);
+    //    } 
+    //     if(curlvl >= 6 && message.author.id != 308650476847628298){
+    //        var role = message.guild.roles.cache.find(role => role.name === "U");
+    //        message.member.roles.add(role);
+    //    } 
+    //     if(curlvl >= 3 && message.author.id != 308650476847628298){
+    //        var role = message.guild.roles.cache.find(role => role.name === "R");
+    //        message.member.roles.add(role);
+    //    } 
+    //     if(curlvl >= 1 && message.author.id != 308650476847628298){
+    //        var role = message.guild.roles.cache.find(role => role.name === "B");
+    //        message.member.roles.add(role);
+    //    }
+//
+    //}
+    //
+//
+//
+    //if (message.content.startsWith(curprefix+"level") && !isCooldown){
+    //    let xpNeeded = nextLevel - curxp;
+    //    isCooldown = true;
+    //    let levelMsg = new Discord.MessageEmbed()
+    //    .setTitle(`Current stats for ${message.author.username}:            `)
+    //    .setColor("#d89ada")
+    //    .addField("Level: ", curlvl, true)
+    //    .addField("XP: ", curxp, true)
+    //    .setThumbnail(message.author.displayAvatarURL)
+    //    .setFooter(`${xpNeeded} xp until level up.`, "https://cdn.discordapp.com/attachments/680770022913867816/750711622712033391/nigga_4.jpg");
+//
+    //    setTimeout(StopCooldown, 100)
+    //    message.channel.send(levelMsg)//.then(msg => {msg.delete(200000)})
+//
+    //}
+//
+    //if (message.content.startsWith(curprefix+"forlevel") && !isCooldown){
+    //    let nextLevelforOther = 500 * (Math.pow(2,  xp[message.mentions.users.first().id].level) - 1);
+    //    let curxpforOther = xp[message.mentions.users.first().id].xp;
+    //    let curlvlforOther = xp[message.mentions.users.first().id].level;
+    //    let xpNeededforOther = nextLevelforOther - curxpforOther;
+    //    isCooldown = true;
+    //    let levelMsgforOther = new Discord.MessageEmbed()
+    //    .setTitle(`Current stats for ${message.mentions.users.first().username}:            `)
+    //    .setColor("#d89ada")
+    //    .addField("Level: ", curlvlforOther, true)
+    //    .addField("XP: ", curxpforOther, true)
+    //    .setThumbnail(message.mentions.users.first().displayAvatarURL)
+    //    .setFooter(`${xpNeededforOther} xp until ${message.mentions.users.first().username} levels up.`, "https://cdn.discordapp.com/attachments/680770022913867816/750711622712033391/nigga_4.jpg");
+//
+    //    setTimeout(StopCooldown, 100)
+    //    message.channel.send(levelMsgforOther)//.then(msg => {msg.delete(200000)})
+//
+    //}
 
 
 
 //lvl system end
 
-//funny system
+//send logs to channel start
 
+    if(message.content.startsWith(curprefix+"sendlogs")){
+        if (message.member.hasPermission("ADMINISTRATOR")){
+            message.channel.send("All the logs I have.", {
+            files: [
+                "./guildlogs/"+message.guild.id.toString()+".txt"
+            ]
+        });
+        } else return message.reply("You don't have the necessary permissions.");
 
-    if (!komedi[message.author.id] && !message.author.bot){
-        komedi[message.author.id] = {
-            ob: 0,
-            ad: 0
-        }
-    };
-
-    let curob = komedi[message.author.id].ob;
-    let curad = komedi[message.author.id].ad;
-
-    if (message.content.includes("31")){komedi[message.author.id].ob = curob + 1};
-    if (message.content.includes("69")){komedi[message.author.id].ad = curad + 1};
-
-    if (message.guild.id == 486163617507573760  && message.guild.me.hasPermission("MANAGE_ROLES")){
-        if (curob >= 69){
-            var role = message.guild.roles.cache.find(role => role.name === "G҉A҉Y҉");
-            message.member.roles.add(role);
-        };
-    
-        if (curad >= 31){
-            var role = message.guild.roles.cache.find(role => role.name === "𝐹𝓊𝓃𝓃𝓎");
-            message.member.roles.add(role);
-        };
     }
-    fs.writeFile("./3169.json", JSON.stringify(komedi), (err)=>{
-        if(err) console.log(err)
-    });
 
-//funny system end
+//send logs to channel end
+//help command
+    if(message.content.startsWith(curprefix+"bot?") && message.content != curprefix+"bot???") {
+        var randomlink = links.link[Math.floor(Math.random() * links.link.length)];
+        console.log(randomlink.name)
+        const randomColor = () => {
+            let color = '#';
+            for (let i = 0; i < 6; i++){
+               const random = Math.random();
+               const bit = (random * 16) | 0;
+               color += (bit).toString(16);
+            };
+            return color;
+         };
+        let helpmessage = new Discord.MessageEmbed()
+        .setThumbnail(randomlink.name)
+        .setTitle("Bot nedir?? Nasıl Çalışır?? Commandler neler??")
+        .setColor(randomColor())
+        .setFooter("nig")
+        .addField(curprefix+"bot?", "This message you retard", true)
+        .addField(curprefix+"level", "Shows what your level is and how much xp you have.", true)
+        .addField(curprefix+"forlevel @user", "Show what user's level is and how much xp they have.", true)
+        .addField(curprefix+"changename @user 'insert user's new nickname here'", "Sets user's nickname to 'insert user's new nickname here'", true)
+        .addField(curprefix+"disconnect @user", "Disconnects the user from a voice channel", true)
+        .addField(curprefix+"votekick @user", "Opens a poll (that lasts 30 seconds) for the whole server to decide if they want user in the server or not.", true)
+        .addField(curprefix+"clear 'insert number of messages that need to be deleted here'", "Deletes 'insert number of messages that need to be deleted here' messages. (max 99 at a time)", true)
+        .addField(curprefix+"taş,=kağıt,=makas", "Taş Kağıt Makas *bruh*", true)
+        .addField(curprefix+"ping", "(not real)", true)
+        .addField(curprefix+"pingreal", "(real)", true)
+        .addField(curprefix+"russianroulette", "Russian Roulette *bruh*", true)
+        .addField(curprefix+"bot???", "cringe", true);
+        
+        message.channel.send(helpmessage)
+    }
+//help command
 
+//help command ama komik
+if(message.content.startsWith(curprefix+"komikbbot?")) {
+    let helpmessage = new Discord.MessageEmbed()
+    .setTitle("Bot nedir?? Nasıl Çalışır?? Commandler neler??")
+    .setColor("#00ffd2")
+    .setThumbnail("https://media.discordapp.net/attachments/795944276626243585/805905217753317486/dnendoruk.gif")
+    .setFooter("nig")
+    .addField(curprefix+"bot?", "This message you retard", true)
+    .addField(curprefix+"level (@user)", "Shows what user's level is and how much xp they have. (Optional)", true)
+    .addField(curprefix+"sendlogs", "Sends message logs.(Admins only)", true)
+    .addField(curprefix+"namechange @user 'insert user's new nickname here'", "Sets user's nickname to 'insert user's new nickname here'", true)
+    .addField(curprefix+"disconnect @user", "Disconnects the user from a voice channel", true)
+    .addField(curprefix+"votekick @user", "Opens a poll (that lasts 30 seconds) for the whole server to decide if they want user in the server or not.", true)
+    .addField(curprefix+"clear 'insert number of messages that need to be deleted here'", "Deletes 'insert number of messages that need to be deleted here' messages. (max 99 at a time)", true)
+    .addField(curprefix+"taş,=kağıt,=makas", "Taş Kağıt Makas *bruh*", true)
+    .addField(curprefix+"ping", "(not real)", true)
+    .addField(curprefix+"pingreal", "(real)", true)
+    .addField(curprefix+"russianroulette", "Russian Roulette *bruh*", true)
+    .addField(curprefix+"bot???", "cringe", true);
+    
+    message.channel.send(helpmessage)
+}
+//help command komik
 
-
-
-    //if(message.author.id === "326712379389771776"){
-    //    try{
-    //        await message.react("🅱️");
-    //        await message.react("🇷");
-    //        await message.react("🇹");
-    //    } catch (error){
-    //       console.error("One of them failed.");
-    //    }
-    //}
-    //
-    //if(message.author.id === "367300474883538955"){
-    //    try{
-    //        await message.react("🇦");
-    //        await message.react("🇱");
-    //        await message.react("🇴");
-    //        await message.react("🅾️")
-    //   } catch (error){
-    //       console.error("One of them failed.");
-    //   }
-    //}
-//
-    //if(message.author.id === "448152864003588106"){
-    //    try{
-    //        await message.react("😳");
-    //        await message.react("😘");
-    //        await message.react("😍");
-    //        await message.react("🥰");
-    //        await message.react("😻");
-    //        await message.react("😝");
-    //   } catch (error){
-    //       console.error("One of them failed.");
-    //   }
-    //}
-//
-    //if(message.author.id === "347024910234943508"){
-    //    try{
-    //        await message.react("🏳️‍🌈");
-    //        await message.react("🇹");
-    //        await message.react("🅾️");
-    //        await message.react("🇸");
-    //        await message.react("🇮");
-    //        await message.react("🇨");
-    //        await message.react("🇩");
-    //        await message.react("🇴");
-    //        await message.react("🇷");
-    //        await message.react("🇰");
-    //   } catch (error){
-    //       console.error("One of them failed.");
-    //   }
-    //} 
-//
-    //if(message.author.id === "308650476847628298"){
-    //    try{
-    //        await message.react("🇲");
-    //        await message.react("🇴");
-    //        await message.react("🇿");
-    //   } catch (error){
-    //       console.error("One of them failed.");
-    //   }
-    //}  
 });
 
 
@@ -310,269 +555,116 @@ function play(connection, message){
 }
 
 
-
-
-
 var servers = {};
 
-
-
-
-
-
 client.on("message" , message => {
-   console.log(message.content);
-
-
-
-   //if(message.author.id == dkid){
-   // message.channel.send("░▄▀▀░▄▀▄░█▄▀░░░▄▀▄░▀█▀░█▒█▒█▀▄░░░█▀▄░█░█▒░▒██▀▒█▀▄░█░█▄▒▄█░░░█▀▄░▄▀▄▒█▀▄░█▒█░█▄▀░░▒▄▀▄░██▄░█░█▄▒▄█\n░▀▄▄░▀▄▀░█▒█▒░░▀▄▀░█▄▄░▀▄█░█▀▄▒░▒█▄▀░█▒█▄▄░█▄▄░█▀▄░█░█▒▀▒█▒░▒█▄▀░▀▄▀░█▀▄░▀▄█░█▒█▒░░█▀█▒█▄█░█░█▒▀▒█")
-   // //message.channel.send("https://media.discordapp.net/attachments/680770022913867816/717110114049327135/gayDk.gif")
-   // }
-
-    var loggedText = " " + message.author.username + ": " + message.content + " "
-    fs.appendFile("log.txt", loggedText, function (err) {
+    console.log(message.content);
+    //log all messages
+    timestamp = message.createdTimestamp
+    d = new Date( timestamp );
+    var loggedText = "At " + d.getHours() + ":" + d.getMinutes() + ", " + d.toDateString()+ ", " + message.author.username + " said " + '"' + message.content + '"' + "\n"
+    fs.appendFile("./guildlogs/"+message.guild.id.toString()+".txt", loggedText, function (err) {
         if (err) throw err;
         console.log('File is created successfully.');
     }); 
-
-   if(message.author.id == "325180080546512907"){
-       message.react("🚀");
-   }
-   if(message.author.id == "378618427910127626"){
-       message.react("🎹");
-   }
-   if(message.author.id == "340906450236735510"){
-       message.react("🍘");
-   }
-
-
-   if(message.content.toLowerCase().startsWith("yarrak"))
-   {
-       message.channel.send("Küfür")
-       b = b+1
-   }
-
-   if(b === 3){
-       message.author.createDM()
-       message.author.sendMessage("Küfür etme")
-       b = 0
-   }
+    //log all messages end
 
 
 
-
-   let person = message.author
-    if((message.content.startsWith(`${prefix}`) ) && (message.author != "GudBot")) {
+    let person = message.author
+    if((message.content.startsWith(`${curprefix}`))) {
         const broadcast = client.voice.createBroadcast();
         
         //message.channel.send(person + " "+ message.content + "                                                 " + "All hail Özateş...")
 
-        let args = message.content.substring(prefix.length).split(" ");
+        let args = message.content.substring(curprefix.length).split(" ");
 
         switch (args[0]) {
-            case "play":
-                if (!args[1]){
-                    message.channel.send("Please provide a link!");
-                    return;
-                };
-
-                if(!message.member.voice.channel){
-                    message.channel.send("You must be in a voice channel.");
-                    return;
-                };
-
-
-
-                if(!servers[message.guild.id]) servers[message.guild.id] = {
-                    queue: []
-                };
-
-                var server = servers[message.guild.id];
-                
-                server.queue.push(args[1]);
-
-                if (message.member.voice.connection) break;
-                
-                if (!message.member.voice.connection) message.member.voice.channel.join().then(function(connection) {
-                    play(connection, message);
-                });
-
-                break;
-
-            case "skip":
-
-                var server = servers[message.guild.id];
-
-                if (server.dispatcher) server.dispatcher.end();
-
-                break;
-            case "stop":
-                var server = servers[message.guild.id];
-                if (message.guild.voice.channel) message.member.voice.connection.stop();
-                break;
-            case "mute":
-                let channel = message.member.voice.channel;
-                let thePerson = message.mentions.members.first();
-                thePerson.setMute(true)
-                break;
-            case "unmute":
-                let channel2 = message.member.voice.channel;
-                let thePerson2 = message.mentions.members.first();
-                thePerson2.setMute(false)
-                break;
-            case "changename":
-                var member= message.mentions.members.first();
-                if (!message.guild.me.hasPermission('MANAGE_NICKNAMES')) return message.channel.send('I don\'t have permission to change your nickname!');
-                message.member.setNickname(message.content.replace('=changename', ''));
-                
-                break;
-
-            case "disconnect":
-                function dc(){
-                    let vcUser = message.mentions.members.first();
-                    let randomnumber = Math.floor(Math.random() * 9000 + 1000)
-                    //message.guild.createChannel(`voice-kick-${randomnumber}`, "voice")
-                    vcUser.setVoiceChannel(message.guild.channels.find(r => r.name === `voice-kick-${randomnumber}`))
-                }
-                for (i = 0; i < 1; i++){
-                    dc()
-                }
-
-                break;
-            
-            case "invpls":
-                birinsan = message.mentions.members.first();
-                message.channel.send("Sent invite to " + message.author + `'s friend ${birinsan}`)
-                birinsan.createDM()
-                birinsan.sendMessage("It's time for you to come back. Möz needs you...")
-                birinsan.sendMessage("https://discord.gg/wcEFykW")
-
-                break;
-
-            case "kick":
-                if(message.author.bot) return;
-                if (message.content.includes("@everyone")) return message.reply("You can't @everyone")
-                if (message.content.includes("@here")) return message.reply("You can't @here")
-                if(!message.mentions.members.first()) return message.reply("You didn't @ a person.");
-                if(notCooldown){
-                    if(message.author.bot) return;
-                    if(!message.mentions.members.first()) return message.reply("You didn't @ a person.");
-                    backTime = (Math.floor(Math.random()*25)+1)*60000
-                    console.log(backTime)
-                    notCooldown = false
-                    var member= message.mentions.members.first();
-                    message.channel.send(`Vote to kick <@${member.id}>`)
-                    message.channel.send("Type 'kick' to vote for the member to be kicked, and type 'stay' to vote for the member to stay. You have 30 seconds and it starts now.")
-                    client.on("message", message => {
-                        if(message.author.bot) return;
-                        if(namelist.includes(message.author.id) == false){
-                            let msg = message.content.toLowerCase()
-                            //Ben == mal
-                            //Çalışıyor sanki
-                            if (msg.startsWith("kick")) {
-                                namelist.push(message.author.id);
-                                votes += 1
-                                message.reply(" voted yes.")
-                                message.channel.send("Current vote: " + votes)
-                            }
-                            if (msg.startsWith("stay")){
-                                namelist.push(message.author.id);
-                                votes -= 1
-                                message.reply(" voted no.")
-                                message.channel.send("Current vote: " + votes)
-                            }
-                        }
-                    })
-                    function setTrue() {
-                        notCooldown = true
-                    }
-                    function sendInvite(){
-                        member.createDM()
-                        member.sendMessage("It's time for you to come back. Möz needs you...")
-                        member.sendMessage("https://discord.gg/6Nb9jMX")
-                    }
-                    function decide() {
-                        if (votes > 0){
-                            message.channel.send("The decision has been made... Its time for you to go...")
-                            message.channel.send("Kicked for: " + backTime/60000 + " " + "minutes...")
-                            message.channel.send("Final votes: " + votes)
-                            member.kick()
-                            namelist = [];
-                            votes = votes-votes
-                            setTimeout(sendInvite, 30000+backTime);
-        
-                        } else{
-                            message.channel.send("The decision has been made... You stay with us")
-                            message.channel.send("Final votes: " + votes)
-                            namelist = [];
-                            votes = votes-votes
-                        }
-        
-                    }
-        
-                    setTimeout(setTrue, 30000);
-                    setTimeout(decide, 30000);
-        
-        
-                } else{
-                    const index = namelist.indexOf(message.author.id)
-                    delete namelist[index]
-                    message.reply(" you cannot start a new kick poll before the current one is finished!")
-        
-                }
-
-                break;
+            //case "play":
+            //    if (!args[1]){
+            //        message.channel.send("Please provide a link!");
+            //        return;
+            //    };
+//
+            //    if(!message.member.voice.channel){
+            //        message.channel.send("You must be in a voice channel.");
+            //        return;
+            //    };
+//
+//
+//
+            //    if(!servers[message.guild.id]) servers[message.guild.id] = {
+            //        queue: []
+            //    };
+//
+            //    var server = servers[message.guild.id];
+            //    
+            //    server.queue.push(args[1]);
+//
+            //    if (message.member.voice.connection) break;
+            //    
+            //    if (!message.member.voice.connection) message.member.voice.channel.join().then(function(connection) {
+            //        play(connection, message);
+            //    });
+//
+            //    break;
+//
+            //case "skip":
+//
+            //    var server = servers[message.guild.id];
+//
+            //    if (server.dispatcher) server.dispatcher.end();
+//
+            //    break;
+            //case "stop":
+            //    var server = servers[message.guild.id];
+            //    if (message.guild.voice.channel) message.member.voice.connection.stop();
+            //    break;
 
             case "ping".toLowerCase():
-                ping=Math.floor(Math.random() * 2481);
+                ping=Math.floor(Math.random() * 6931);
                 message.channel.send(`Ping is ${ping} `)
 
                 break;
 
             case "pingreal".toLowerCase():
-                ping=Math.floor(Math.round(client.ping));
-                message.channel.send(`Pong! <@${message.author.id}>. Took ${ping} ms`)
+                console.log(Date.now());
+                console.log(message.createdTimestamp);
+                console.log(message.createdAt.getTime());
+                message.channel.send(`Pong! <@${message.author.id}>. ${Math.round(client.ws.ping)}ms.`);
 
                 break;
 
-            case "ban pls".toLocaleLowerCase():
-                ege = "448152864003588106"
-                guilddd = new Discord.GuildMember(ege);
-                guildddd.member.kick()
 
-
-                break;
-
-            case "join".toLowerCase():
-
-                if (!message.member.voice.channel) {
-                    message.channel.send("Bir kanala gir...    All hail Özateş");
-                    return;
-                }
-                if (!message.member.voice.connection) message.member.voice.channel.join().then(connection => {
-                    broadcast.play('C:/Users/bartu/dbot/mediafiles/lmao.mp3');
-                    const dispatcher = connection.play(broadcast);
-                    const reciever = connection.createReceiver();
-                    connection.on("speaking", (user, speaking) => {
-                        if (speaking) {
-                            console.log(`I'm listening to ${user}`)
-                            const audioStream = reciever.createPCMStream(user)
-                            const outputStream = generateOutputFile(message.member.voice.channel, user);
-                            audioStream.pipe(outputStream);
-                            outputStream.on("data", console.log);
-                            setTimeout(() => { audioStream.off }, 6000)
-                            if (speaking = false) {
-                                outputStream.end();
-                                audioStream.end();
-                            }
-                            audioStream.on('end', () => {
-                                console.log(`I'm no longer listening to ${user}`);
-                            });
-                        }
-                    })
-                })
-                break;
+            //case "join".toLowerCase():
+//
+            //    if (!message.member.voice.channel) {
+            //        message.channel.send("Bir kanala gir...    All hail Özateş");
+            //        return;
+            //    }
+            //    if (!message.member.voice.connection) message.member.voice.channel.join().then(connection => {
+            //        broadcast.play('C:/Users/bartu/dbot/mediafiles/lmao.mp3');
+            //        const dispatcher = connection.play(broadcast);
+            //        const reciever = connection.createReceiver();
+            //        connection.on("speaking", (user, speaking) => {
+            //            if (speaking) {
+            //                console.log(`I'm listening to ${user}`)
+            //                const audioStream = reciever.createPCMStream(user)
+            //                const outputStream = generateOutputFile(message.member.voice.channel, user);
+            //                audioStream.pipe(outputStream);
+            //                outputStream.on("data", console.log);
+            //                setTimeout(() => { audioStream.off }, 6000)
+            //                if (speaking = false) {
+            //                    outputStream.end();
+            //                    audioStream.end();
+            //                }
+            //                audioStream.on('end', () => {
+            //                    console.log(`I'm no longer listening to ${user}`);
+            //                });
+            //            }
+            //        })
+            //    })
+            //    break;
             case "Taş".toLowerCase():
                 var tkm = ["Taş" , "Kağıt" , "Makas"]
                 var rnd = tkm[Math.floor(Math.random() * tkm.length)];
@@ -633,17 +725,16 @@ client.on("message" , message => {
             case "RussianRoulette".toLowerCase():
                 let number = Math.floor( Math.random() * 10 + 1)
                 let number2 = Math.floor(Math.random() * 10 + 1)
-                message.channel.send("İlk sayı: "+ number.toString() + " " + "İkinci sayı: "+ number2.toString());
+                
                 if (number === number2){
-
                     message.channel.send("Pow! Öldün :(");
-                }
+                } else message.channel.send("*Click* Şimdilik hayattasın... ||"+"İlk sayı: "+ number.toString() + " " + "İkinci sayı: "+ number2.toString()+"||");
                     
                 
             break;
 
             case "Bot???".toLowerCase():
-                message.channel.send("Bot?????? , Bot nedir??? Nasıl kullanılır???" + " " + "=özateş , =zekikardeşim , =dorukæum , !gay , =defaultdance , =jbruh , =n-word , =karrı , =çıkış , =bruh , =dolunay , =egeæum , =zeka , =börke , =börke2 , =sksksk , =öl(bot çıkar) , =nigga ,  =bruhlovania , =russianroulette , =p , Taş kağı makas oynamak için (=taş , =kağıt , =makas)")
+                message.channel.send("Bot?????? , Bot nedir??? Nasıl kullanılır???" + " " + "=dorukæum , =karrı , =çıkış , =dolunay , =egeæum , =öl(bot çıkar) , =russianroulette , =p , Taş kağıt makas oynamak için (=taş , =kağıt , =makas) , =ping(real) , =kick , =play , =disconnect(admin abuse dimi kel dork) , =changename(admin abuse kel dorku) , ")
 
             break;
 
