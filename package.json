@@ -23,6 +23,7 @@
     "request": "^2.88.2",
     "rss-parser": "^3.10.0",
     "save": "^2.4.0",
+    "snekfetch": "^4.0.4",
     "ytdl-core": "^4.5.0",
     "ytdl-core-discord": "^1.2.5",
     "ytsr": "^3.3.1"
