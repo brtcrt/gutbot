@@ -1,12 +1,18 @@
 const Discord = require("discord.js");
-const { token } = require("./config.json");
-let xp = require("./xp.json");
+const { token, giphytoken, geniustoken, tenortoken } = require("./config.json");
+const request = require("request");
+const nodefetch = require("node-fetch");
+let todolist = require("./todolist.json");
+let reminder = require("./reminders.json")
 let newxp = require("./exp.json")
-let komedi = require("./3169.json");
 let prefixes = require("./prefixes.json");
 let links = require("./links.json");
+const Pagination = require("discord-paginationembed")
+const cheerio = require("cheerio")
 const client = new Discord.Client () ;
-const ytdl = require("ytdl-core");
+const ytdl = require('ytdl-core-discord');
+const ytsr = require('ytsr');
+const {get} = require("snekfetch");
 let i = 0;
 let b = 0;
 client.db = require("quick.db");
@@ -19,7 +25,7 @@ const { parse } = require("path");
 const { clear } = require("console");
 const { connected } = require("process");
 let notCooldown = true
-let notCooldown2 = true
+let looping = false;
 let namelist = [];
 let namelist2 = [];
 let someIndex
@@ -31,7 +37,18 @@ let voteKicks = 0
 let voteStays = 0
 let curprefix = "="
 let d
+let allreminders = "allreminders"
+let servers = {
 
+}
+let someRandomThing
+let playingTrack = false
+let searchResults
+let someInfo
+let currentlyPaused = false
+let rrstreak = require("./rrStreaks.json")
+let loopingDetails
+let lyricsURL
 
 function generateOutputFile(channel, member) {
     const fileName = `./kayıtlar/${channel.id}-${member.id}-${Date.now()}.pcm`;
@@ -42,65 +59,229 @@ function StopCooldown(){
     isCooldown = false
 }
 
-//yoinked yt code
+function rps(message){
+    let userChoice = message.content.slice(1);
+    userChoice = userChoice.replace(/(^\w{1})|(\s+\w{1})/g, letter => letter.toUpperCase());
+    let rpsList = ["Rock", "Paper", "Scissors"];
+    var item = rpsList[Math.floor(Math.random() * rpsList.length)];
+    let LostrpsMessage = new Discord.MessageEmbed()
+    .setDescription("Cry about it!")
+    .setTitle("You lost!")
+    .addField("I chose:", item, true)
+    .addField("You chose:", userChoice, true);
+    let WonrpsMessage = new Discord.MessageEmbed()
+    .setTitle("You Won.")
+    .addField("I chose:", item, true)
+    .addField("You chose:", userChoice, true);
+    let DrawrpsMessage = new Discord.MessageEmbed()
+    .setTitle("Draw...")
+    .addField("I chose:", item, true)
+    .addField("You chose:", userChoice, true);
+    if(userChoice == "Rock" && item == "Rock") return message.channel.send(DrawrpsMessage);
+    if(userChoice == "Paper" && item == "Rock") return message.channel.send(WonrpsMessage);
+    if(userChoice == "Scissors" && item == "Rock") return message.channel.send(LostrpsMessage);
+    if(userChoice == "Paper" && item == "Paper") return message.channel.send(DrawrpsMessage);
+    if(userChoice == "Scissors" && item == "Paper") return message.channel.send(WonrpsMessage);
+    if(userChoice == "Rock" && item == "Paper") return message.channel.send(LostrpsMessage);
+    if(userChoice == "Scissors" && item == "Scissors") return message.channel.send(DrawrpsMessage);
+    if(userChoice == "Rock" && item == "Scissors") return message.channel.send(WonrpsMessage);
+    if(userChoice == "Paper" && item == "Scissors") return message.channel.send(LostrpsMessage);
+}
+async function getVideoDetails (video){
+        function learnRegExp(s) {    
+        var regexp = /(ftp|http|https):\/\/(\w+:{0,1}\w*@)?(\S+)(:[0-9]+)?(\/|\/([\w#!:.?+=&%@!\-\/]))?/;
+        return regexp.test(s);    
+    }
+    validornot = learnRegExp(video);
+    if(!validornot){
+        const searchResults = await ytsr(video);
+        return searchResults
+    } else{
+        const someInfo = await ytdl.getBasicInfo(video);
+        return someInfo.videoDetails
+    }
+}
 
-//yoinked yt code end
+async function findLyrics(message, loopingTrack){
+    let songName = loopingTrack.title;
+    songName = songName.replace(/ *\([^)]*\) */g, '');
+    songName = songName.replace(
+      /([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g,
+      ''
+    );
+    console.log(songName);
+    let searchUrl = (`https://api.genius.com/search?q=${encodeURI(songName)}`);
+    const headers = {
+        Authorization: `Bearer ${geniustoken}`
+    };
+    try {
+        const body = await nodefetch(searchUrl, {headers});
+        const result = await body.json();
+        if(!result) return SendErrorMessage(message);
+        const songPath = result.response.hits[0].result.api_path;  
+        if (!songPath) return SendErrorMessage(message, "Couldn't find lyrics for this.");
+        const LyricsPath = (`https://api.genius.com${songPath}`);
+        console.log(LyricsPath);
+        const body2 = await nodefetch(LyricsPath, { headers });
+        const result2 = await body2.json();
+        if(!result2.response.song.url) return SendErrorMessage(message);
+        const pageUrl = result2.response.song.url;
+        const response3 = await nodefetch(pageUrl);
+        lyricsURL = pageUrl;
+        const text = await response3.text();
+        const $ = cheerio.load(text);
+        let lyrics = $('.lyrics')
+          .text()
+          .trim();
+        if (!lyrics) {
+            $('.Lyrics__Container-sc-1ynbvzw-2')
+                .find('br')
+                .replaceWith('\n');
+            lyrics = $('.Lyrics__Container-sc-1ynbvzw-2').text();
+            if (!lyrics) { 
+                return SendErrorMessage(message)
+            } else {
+                return lyrics.replace(/(\[.+\])/g, '')
+            }
+        } else {
+            return lyrics.replace(/(\[.+\])/g, '')
+        }
+    } catch (e) {
+        console.log(e);
+    };
+}
 
 
-//client.on('guildMemberAdd', async member => {
-//    console.log("Biri geldi.")
-//	const channel = member.guild.channels.cache.find(ch => ch.id == '693412472228413511');
-//	if (!channel) return;
-//
-//	const canvas = Canvas.createCanvas(700, 250);
-//	const ctx = canvas.getContext('2d');
-//
-//	const background = await Canvas.loadImage('./mediafiles/wallpaper.jpg');
-//	ctx.drawImage(background, 0, 0, canvas.width, canvas.height);
-//
-//	ctx.strokeStyle = '#74037b';
-//	ctx.strokeRect(0, 0, canvas.width, canvas.height);
-//
-//	// Slightly smaller text placed above the member's display name
-//	ctx.font = '28px sans-serif';
-//	ctx.fillStyle = '#ffffff';
-//	ctx.fillText('Sa, as', canvas.width / 2.5, canvas.height / 3.5);
-//
-//	// Add an exclamation point here and below
-//	ctx.font = applyText(canvas, `${member.displayName}!`);
-//	ctx.fillStyle = '#ffffff';
-//	ctx.fillText(`${member.displayName}!`, canvas.width / 2.5, canvas.height / 1.8);
-//
-//	ctx.beginPath();
-//	ctx.arc(125, 125, 100, 0, Math.PI * 2, true);
-//	ctx.closePath();
-//	ctx.clip();
-//
-//	const avatar = await Canvas.loadImage(member.user.displayAvatarURL({ format: 'jpg' }));
-//	ctx.drawImage(avatar, 25, 25, 200, 200);
-//
-//	const attachment = new Discord.MessageAttachment(canvas.toBuffer(), 'welcome-image.png');
-//
-//    member.permissions.add(member.guild.roles.cache.find(r => r.id == "792820466531565588"))
-//    channel.send(`Sa as ${member}!`, attachment);
-//});
+async function playNewTrack(message, loopingTrack){
+    let searchedURL
+    let searched
+    let startedMessage
+    let nextTrack
+    let nextTrackURL
+    if(!looping){
+        servers[message.guild.id].dispatch.end();
+        nextTrack = servers[message.guild.id].queue.shift();
+        console.log(nextTrack)
+        nextTrackURL = nextTrack.url
+    }
+
+    //function learnRegExp(s) {    
+    //    var regexp = /(ftp|http|https):\/\/(\w+:{0,1}\w*@)?(\S+)(:[0-9]+)?(\/|\/([\w#!:.?+=&%@!\-\/]))?/;
+    //    return regexp.test(s);    
+    //}
+    //validornot = learnRegExp(nextTrack);
+    //if(!looping){
+    //    if(!validornot){
+    //        const searchResults = await ytsr(nextTrack);
+    //        //console.log(searchResults)
+    //        searchedURL = searchResults.items[0].url;
+    //        searched = searchResults.items[0];
+    //        let vidTitle=(searched.title);
+    //        let channelTitle = (searched.author.name);
+    //        let channelURL = (searched.author.url);
+    //        startedMessage = new Discord.MessageEmbed()
+    //        .setTitle("Now Playing:")
+    //        .setColor("RANDOM")
+    //        .setDescription(`[${vidTitle}](${searchedURL})  -  [${channelTitle}](${channelURL})`)
+    //        .setThumbnail(searched.bestThumbnail.url);
+    //    } else {
+    //        someInfo = await ytdl.getBasicInfo(nextTrack);
+    //        searchedURL = nextTrack
+    //        let vidTitle=(someInfo.videoDetails.title);
+    //        let channelTitle = (someInfo.videoDetails.author.name);
+    //        let channelURL = "https://www.youtube.com/channel/"+(someInfo.videoDetails.channelId);
+    //        startedMessage = new Discord.MessageEmbed()
+    //        .setTitle("Now Playing:")
+    //        .setColor("RANDOM")
+    //        .setDescription(`[${vidTitle}](${nextTrack})  -  [${channelTitle}](${channelURL})`)
+    //        .setThumbnail(someInfo.videoDetails.thumbnails[0].url);
+    //    }
+    //}
+
+
+    if(looping){
+        console.log(loopingTrack);
+        nextTrack = loopingTrack;
+        nextTrackURL = loopingTrack.url;
+    }
+    //console.log(searched)
+    //let info =  (await ytdl.getInfo(searchedURL))
+    const connection = await message.member.voice.channel.join();
+    connection.voice.setSelfDeaf(true);
+    loopingDetails.title = nextTrack.title;
+    loopingDetails.url = nextTrackURL;
+    loopingDetails.channelname = nextTrack.channelname;
+    loopingDetails.channelurl = nextTrack.channelurl;
+    loopingDetails.thumbnail = nextTrack.thumbnail;
+    const dispatcher = connection.play(await ytdl(nextTrackURL),{ type: 'opus', highWaterMark: 1<<23});
+    servers[message.guild.id].dispatch = dispatcher
+    playingTrack = true
+    startedMessage = new Discord.MessageEmbed()
+        .setTitle("Now Playing:")
+        .setColor("RANDOM")
+        .setDescription(`[${nextTrack.title}](${nextTrackURL})  -  [${nextTrack.channelname}](${nextTrack.channelurl})`)
+        .setThumbnail(nextTrack.thumbnail);
+    console.log('Now playing!');
+    message.channel.send(startedMessage);
+
+    let finnishedMessage = new Discord.MessageEmbed()
+    .setDescription("Stopped Playing!")
+    .setColor("#f01717");
+    dispatcher.on('finish', () => {
+        if (looping) {
+            return playNewTrack(message, nextTrack);
+        }
+        if(servers[message.guild.id].queue[0] != null){
+            console.log("Playing next track.")
+            return playNewTrack(message);
+        } else {
+            playingTrack = false;
+            console.log('Finished playing!');
+            message.channel.send(finnishedMessage);
+            dispatcher.destroy();
+            message.member.voice.channel.leave();   
+        }
+        
+    });
+    
+    // Always remember to handle errors appropriately!
+    dispatcher.on('error', console.error);
+}
+
+function SendSuccessMessage(message, success){
+    if(!success) success = "Successfuly executed the command!";
+    let generalsuccessmessage = new Discord.MessageEmbed()
+    .setTitle("Success!")
+    .setColor("#09ff01")
+    .setDescription(success.toString());
+    message.channel.send(generalsuccessmessage);
+}
+
+function SendErrorMessage(message, reason){
+    if(!reason){
+        reason = "Looks like something went wrong. Please try again. If you need help use =bot?"
+    }
+    let generalerrormessage = new Discord.MessageEmbed()
+    .setTitle("Uh oh! Something went wrong!")
+    .setColor("#f01717")
+    .setDescription(reason.toString());
+    message.channel.send(generalerrormessage);
+}
+
+
 
 
 client.once("ready", () => {
     console.log("Ready!")
-    client.user.setActivity("=bot?", {type: "COMPETING"})
-})
-
-client.on("guildMemberAdd", newMember => {
-    var role = newMember.guild.roles.cache.find(role => role.id === "719469768654061579");
-    newMember.roles.add(role);
+    client.user.setActivity("=bot?", {type: "LISTENING"})
 })
 
 
 client.on("message", async message  => { 
     if(message.author.bot) return;
-
-    //custom prefix system start
+    if(message.guild === null) return;
+    //if(message.author.id == "394084798752227328") return;
+//custom prefix system start
     if(!prefixes[message.guild.id]){
         prefixes[message.guild.id] = {
             prefix: "="
@@ -117,26 +298,520 @@ client.on("message", async message  => {
             if(err) console.log(err)
         });
         if(prefixes[message.guild.id].prefix == newprefix[1]){
-            message.reply('Command prefix is now "' + newprefix[1]+'"')
-        } else message.reply("Something went wrong.")
+            SendSuccessMessage(message, 'Command prefix is now "' + newprefix[1]+'"')//message.reply('Command prefix is now "' + newprefix[1]+'"')
+        } else SendErrorMessage(message, "Something went wrong while changing the prefix. Please try again.")
     }
-    //custom prefix system end
+//custom prefix system end
 
-    //change name
+//lyrics
+
+    if(message.content.startsWith(curprefix+"lyrics")){
+        if(!message.member.voice.channel) return SendErrorMessage(message, "You need to be in a voice channel to run this command.");
+        if(!playingTrack) return SendErrorMessage(message,"No track is being played.");
+        if(!loopingDetails) return SendErrorMessage(message,"No track is being played.");
+        const sentMessage = await message.channel.send(
+            'Searching for lyrics...'
+        );
+        let lyrics = await findLyrics(message, loopingDetails);
+        if(!lyrics) return SendErrorMessage(message);
+        const lyricsIndex = Math.round(lyrics.length / 2048) + 1;
+        const lyricsArray = [];
+        for (let i = 1; i <= lyricsIndex; ++i) {
+          let b = i - 1;
+          lyricsArray.push(
+            new Discord.MessageEmbed()
+              .setTitle(`${loopingDetails.title}, Page #` + i)
+              .setDescription(lyrics.slice(b * 2048, i * 2048))
+              .setFooter('Provided by genius.com')
+          );
+        }
+        const lyricsEmbed = new Pagination.Embeds()
+          .setArray(lyricsArray)
+          .setAuthorizedUsers([message.author.id])
+          .setChannel(message.channel)
+          .setURL(lyricsURL)
+          .setColor('#00724E');
+        return sentMessage
+            .edit(':white_check_mark: Lyrics Found!', lyricsEmbed.build())
+            .then(msg => {
+                msg.delete({ timeout: 2000 });
+        });
+    }
+
+//lyrics end
+
+//loop
+
+    if(message.content.startsWith(curprefix+"loop")){
+        if(looping){
+            if(!playingTrack) return SendErrorMessage(message,"No track is being played.");
+            looping = false;
+            return SendSuccessMessage(message, "Unlooped tracked.");
+        } else {
+            if(!playingTrack) return SendErrorMessage(message,"No track is being played.");
+            looping = true;
+            return SendSuccessMessage(message, "Now looping track.");
+        }
+
+    }
+
+//loop end
+
+//volume control
+
+    if(message.content.startsWith(curprefix+"volume")){
+        if(!message.member.voice.channel) return SendErrorMessage(message, "You need to be in a voice channel to run this command.");
+        if(!playingTrack) return SendErrorMessage(message,"No track is being played.");
+        let args = message.content.slice(1).split(" ").slice(1);
+        if (args[0] == null) return SendErrorMessage(message, "You didn't give a nuber.")
+        if(parseInt(args[0]) < 0 || parseInt(args[0]) > 1) return SendErrorMessage(message, "You didn't give a nuber between 0 and 1.")
+        if(!servers[message.guild.id].dispatch) return SendErrorMessage(message);
+        servers[message.guild.id].dispatch.setVolume(parseInt(args[0]));
+        return SendSuccessMessage(message, "Volume set to " + args[0]);
+    }
+
+
+//volume control end
+
+//pause/unpause
+
+    if(message.content.startsWith(curprefix+"pause")){
+        if(!message.member.voice.channel) return SendErrorMessage(message, "You need to be in a voice channel to run this command.");
+        if(!playingTrack) return SendErrorMessage(message,"No track is being played.");
+        if(!servers[message.guild.id].dispatch) return SendErrorMessage(message);
+        if(!currentlyPaused) {
+            servers[message.guild.id].dispatch.pause();
+            currentlyPaused = true;
+            return SendSuccessMessage(message, "Paused!");
+        } if(currentlyPaused) {
+            servers[message.guild.id].dispatch.resume();
+            currentlyPaused = false;
+            return SendSuccessMessage(message, "Unpaused!");
+        }
+    }
+
+//pause/unpause end
+
+
+//skip
+
+    if(message.content.startsWith(curprefix+"skip") || message.content.startsWith(curprefix+"next")){
+        if(!message.member.voice.channel) return SendErrorMessage(message, "You need to be in a voice channel to run this command.");
+        if(!servers[message.guild.id]) return SendErrorMessage(message,"Queue is currently empty!");
+        if(!playingTrack) return SendErrorMessage(message,"Queue is currently empty!");
+        if(servers[message.guild.id].queue[0] == null) return SendErrorMessage(message,"Queue is currently empty!");
+        return await playNewTrack(message);
+    }
+
+//skip end
+
+//queue command
+
+    if(message.content.startsWith(curprefix+"queue") && !message.content.startsWith(curprefix+"play")){
+        if(!servers[message.guild.id]) return SendErrorMessage(message,"Queue is currently empty!");
+        if(!playingTrack) return SendErrorMessage(message,"Queue is currently empty!");
+        if(servers[message.guild.id].queue[0] == null) return SendErrorMessage(message,"Queue is currently empty!");
+        
+
+        //function learnRegExp(s) {    
+        //    var regexp = /(ftp|http|https):\/\/(\w+:{0,1}\w*@)?(\S+)(:[0-9]+)?(\/|\/([\w#!:.?+=&%@!\-\/]))?/;
+        //    return regexp.test(s);    
+        //}
+        let qinfo = ""
+        //if(!message.member.voice.channel) return SendErrorMessage(message, "You need to be in a voice channel to run this command.");
+
+        for(let i = 0; i < servers[message.guild.id].queue.length; i++ ){
+            let vidInfo = servers[message.guild.id].queue[i]
+            //validornot = learnRegExp(servers[message.guild.id].queue[i]);
+            qinfo = qinfo + (i+1).toString() + ") " + `[${vidInfo.title}](${vidInfo.url})  -  [${vidInfo.channelname}](${vidInfo.channelurl})`  +"\n ";
+            console.log(qinfo)
+        }
+        let qEmbed = {
+            color: "RANDOM",
+            title: "Queue for **" + message.guild.name + "**",
+            description: qinfo
+        }
+        message.channel.send({embed: qEmbed});
+    }
+
+//queue command end
+
+//play 
+
+    if (message.content.startsWith(curprefix+"play")){
+        if(!message.member.voice.channel){
+            SendErrorMessage(message, "You need to be in a voice channel to run this command.")
+            return;
+        }
+
+        let args = message.content.slice(1).split(" ").slice(1);
+        if (args[0] == null) return SendErrorMessage(message, "You didn't give a link or a search term.")
+        console.log(args)
+        if(!servers[message.guild.id]){
+            servers[message.guild.id] = {
+                dispatch: someRandomThing,
+                queue: []
+            }
+        }
+        function learnRegExp(s) {    
+            var regexp = /(ftp|http|https):\/\/(\w+:{0,1}\w*@)?(\S+)(:[0-9]+)?(\/|\/([\w#!:.?+=&%@!\-\/]))?/;
+            return regexp.test(s);    
+        }
+        validornot = learnRegExp(args[0])
+        //if(!validornot){
+        //    
+        //} else {
+        //    
+        //}
+        
+        if (!validornot) {
+            if(playingTrack){
+                //if(looping) return;
+                searchResults = await getVideoDetails(args.join(" "));
+                //servers[message.guild.id].queue.push(args.join(" "));
+                let searchedURL = searchResults.items[0].url;
+                let searched = searchResults.items[0];
+                let vidTitle=(searched.title);
+                let channelTitle = (searched.author.name);
+                let channelURL = (searched.author.url);
+                let nextTrackDetails = {
+                    url: searchedURL,
+                    title: vidTitle,
+                    channelname: channelTitle,
+                    channelurl: channelURL,
+                    thumbnail: searched.bestThumbnail.url
+                };
+                servers[message.guild.id].queue.push(nextTrackDetails);
+                console.log(servers[message.guild.id].queue);
+                return SendSuccessMessage(message, "Successfuly added " + `[${vidTitle}](${searchedURL})  -  [${channelTitle}](${channelURL})` + " to the queue!")
+            }
+            playingTrack = true;
+            servers[message.guild.id].queue = [];
+            //let errorMessage = new Discord.MessageEmbed()
+            //.setTitle("Uh oh! Something went wrong!")
+            //.setColor("#f01717") 
+            //.setDescription("Looks like you didn't give a link.");
+            //console.log(searchResults)
+            searchResults = await getVideoDetails(args.join(" "));
+            let searchedURL = searchResults.items[0].url;
+            let searched = searchResults.items[0];
+            let vidTitle=(searched.title);
+            let channelTitle = (searched.author.name);
+            let channelURL = (searched.author.url);
+            loopingDetails = {
+                url: searchedURL,
+                title: vidTitle,
+                channelname: channelTitle,
+                channelurl: channelURL,
+                thumbnail: searched.bestThumbnail.url
+            };
+            //console.log(searched)
+            //let info =  (await ytdl.getInfo(searchedURL))
+            const connection = await message.member.voice.channel.join();
+            connection.voice.setSelfDeaf(true);
+            const dispatcher = connection.play(await ytdl(searchedURL), { type: 'opus', highWaterMark: 1<<23 });
+            servers[message.guild.id].dispatch = dispatcher
+            //console.log(servers[message.guild.id].dispatch)
+            let finnishedMessage = new Discord.MessageEmbed()
+            .setDescription("Stopped Playing!")
+            .setColor("#f01717");
+            dispatcher.on('start', async () => {
+                let vidTitle=(searched.title);
+                let channelTitle = (searched.author.name);
+                let channelURL = (searched.author.url);
+                let startedMessage = new Discord.MessageEmbed()
+                .setTitle("Now Playing:")
+                .setColor("RANDOM")
+                .setDescription(`[${vidTitle}](${searchedURL})  -  [${channelTitle}](${channelURL})`)
+                //.addField(vidTitle,channelTitle,false)
+                .setThumbnail(searched.bestThumbnail.url);
+                console.log('Now playing!');
+                message.channel.send(startedMessage);
+            });
+            
+            dispatcher.on('finish', () => {
+                if(looping){
+                    return playNewTrack(message, loopingDetails);
+                }
+                if(servers[message.guild.id].queue[0] != null){
+                    console.log("Playing next track.")
+                    return playNewTrack(message);
+                } else {
+                    playingTrack = false;
+                    console.log('Finished playing!');
+                    message.channel.send(finnishedMessage);
+                    dispatcher.destroy();
+                    message.member.voice.channel.leave();   
+                }
+                
+            });
+            
+            // Always remember to handle errors appropriately!
+            dispatcher.on('error', console.error);
+        }else {
+            if(playingTrack){
+                //if(looping) return;
+                someInfo = await getVideoDetails(args[0]);
+                let vidTitle=(someInfo.title);
+                let channelTitle = (someInfo.author.name);
+                let channelURL = "https://www.youtube.com/channel/"+(someInfo.channelId);
+                let nextTrackDetails = {
+                    url: args[0],
+                    title: vidTitle,
+                    channelname: channelTitle,
+                    channelurl: channelURL,
+                    thumbnail: someInfo.thumbnails[0].url
+                };
+                servers[message.guild.id].queue.push(nextTrackDetails);
+                console.log(servers[message.guild.id].queue);
+                return SendSuccessMessage(message, "Successfuly added " +  `[${vidTitle}](${args[0]})  -  [${channelTitle}](${channelURL})` + " to the queue!")
+            }
+            playingTrack = true;
+            servers[message.guild.id].queue = [];
+            //const searchResults = await (ytsr(args[0]));
+            //let searched = searchResults.items[0];
+            //let searchedURL = searchResults.items[0].url;
+            const connection = await message.member.voice.channel.join();
+            connection.voice.setSelfDeaf(true);
+            const dispatcher = connection.play(await ytdl(args[0]), { type: 'opus', highWaterMark: 1<<23});
+            servers[message.guild.id].dispatch = dispatcher
+            let finnishedMessage = new Discord.MessageEmbed()
+            .setDescription("Stopped Playing!")
+            .setColor("#f01717");
+            dispatcher.on("start", async () => {
+                someInfo = await getVideoDetails(args[0]);
+                let vidTitle=(someInfo.title);
+                let channelTitle = (someInfo.author.name);
+                let channelURL = "https://www.youtube.com/channel/"+(someInfo.channelId);
+                loopingDetails = {
+                    url: args[0],
+                    title: vidTitle,
+                    channelname: channelTitle,
+                    channelurl: channelURL,
+                    thumbnail: someInfo.thumbnails[0].url
+                };
+                let startedMessage = new Discord.MessageEmbed()
+                .setTitle("Now Playing:")
+                .setColor("RANDOM")
+                .setDescription(`[${vidTitle}](${args[0]})  -  [${channelTitle}](${channelURL})`)
+                //.addField(vidTitle,channelTitle,false)
+                .setThumbnail(someInfo.thumbnails[0].url);
+                console.log('Now playing!');
+                message.channel.send(startedMessage)
+            })
+                
+
+            dispatcher.on('finish', () => {
+                if(looping){
+                    return playNewTrack(message, loopingDetails);
+                } else if(servers[message.guild.id].queue[0] != null){
+                    console.log("Playing next track.")
+                    return playNewTrack(message);
+                } else {
+                    playingTrack = false;
+                    console.log('Finished playing!');
+                    message.channel.send(finnishedMessage);
+                    dispatcher.destroy();
+                    message.member.voice.channel.leave();   
+                } 
+
+            });
+
+            // Always remember to handle errors appropriately!
+            dispatcher.on('error', console.error);
+        }
+
+    }
+
+//play end
+
+//get weather info
+    if(message.content.startsWith(curprefix+"weather")){
+        //if (message.author.id == "394084798752227328") return;
+        let cont = message.content.slice(1).split(" ").slice(1);
+        let cityName = cont.join(" ");
+        let currentWeather;
+        let degree;
+        let degreeFeels;
+        let location;
+        let minMax;
+        let Body;
+        if (!cont) return SendErrorMessage(message, "You didn't give a city name!");
+        const options = {
+            method: 'GET',
+            url: 'https://community-open-weather-map.p.rapidapi.com/weather',
+            qs: {q: cityName, units: 'metric'},
+            headers: {
+              'x-rapidapi-key': '372dabaf3fmsh38c6ac27799777ap1e9f4bjsn23447de3f22a',
+              'x-rapidapi-host': 'community-open-weather-map.p.rapidapi.com',
+              useQueryString: true
+            },
+            mode: "JSON"
+        };
+        request(options, function (error, response, body) {
+            if (error) throw new Error(error);
+            //console.log(body)
+            //console.log(response);
+            Body = JSON.parse(body);
+            console.log(Body);
+            if(!Body.weather) return SendErrorMessage(message, "Couldn't find any results :(")
+            currentWeather = Body.weather[0].description;
+            currentWeather = currentWeather.replace(/(^\w{1})|(\s+\w{1})/g, letter => letter.toUpperCase());
+            degree = Body.main.temp;
+            degreeFeels = Body.main.feels_like;
+            location = Body.name + ", " + Body.sys.country;
+            let min = Body.main.temp_min.toString() + "/" //+ body.main.temp_max.toString()
+            let max = Body.main.temp_max.toString();
+            let minMax = min + max
+            let weatherMessage = new Discord.MessageEmbed()
+            .setTitle("Weather in " + location)
+            .setDescription(currentWeather)
+            .addFields(
+                {name: "Temperature:", value: degree.toString(), inline: false},
+                {name: "Feels Like:", value: degreeFeels.toString(), inline: true},
+                {name: "Min/Max Temp:", value: minMax, inline: true}
+            )
+            .setColor("RANDOM");
+            message.channel.send(weatherMessage)
+        });
+
+
+    };
+//get weather info end
+
+//change name
     if(message.content.startsWith(curprefix+"changename")){
-        let cont = message.content.slice(1).split(" ");
+        let cont = message.content.slice(1).split(" ").slice(1);
         let args = cont.slice(1);
 
         let theGuy = message.mentions.members.first();
-        if(!theGuy)return
-        if (!message.guild.me.hasPermission('MANAGE_NICKNAMES')) return message.channel.send('I don\'t have permission to change your nickname!');
-        theGuy.setNickname(args[1]);
+        if(!theGuy)return SendErrorMessage(message, "You didn't @ a person!")//message.reply("You didn't @ a person!")
+        if (!args) return SendErrorMessage(message, "You didn't give a new nickname for the person!")//message.reply("You didn't give a new nickname for the person!")
+        if (!message.guild.me.hasPermission('MANAGE_NICKNAMES')) return SendErrorMessage(message, 'I don\'t have permission to change your nickname!')//message.channel.send('I don\'t have permission to change your nickname!');
+        theGuy.setNickname(args.join(" "));
 
     };
-    //change name end
+//change name end
+
+//random image
+    if (message.content.startsWith(curprefix + 'randompic')) {
+        message.channel.send("https://picsum.photos/"+ (Math.floor(Math.random() * 3000).toString()))
+    }
+
+//random image end
+
+//log all messages
+    timestamp = message.createdTimestamp
+    d = new Date( timestamp );
+    var loggedText = "At " + d.getHours() + ":" + d.getMinutes() + ", " + d.toDateString()+ ", " + message.author.username + " said " + '"' + message.content + '"' + "\n"
+    fs.appendFile("./guildlogs/"+message.guild.id.toString()+".txt", loggedText, function (err) {
+        if (err) throw err;
+        console.log('File is created successfully.');
+    }); 
+//log all messages end
+
+//random dog
+
+if (message.content.startsWith(curprefix + 'dog')) {
+    try {
+        get('https://random.dog/woof.json').then(response => {
+            let jsonobj = response.body
+            message.channel.send({files: [{attachment: jsonobj.url}]});
+        })
+    } catch (e) {
+        console.log(e);
+    }
+};
+
+//random dog end
+
+//random bird
+
+if (message.content.startsWith(curprefix + 'bird')) {
+    try {
+        get('https://some-random-api.ml/img/birb').then(response => {
+            let jsonobj = response.body
+            message.channel.send({files: [{attachment: jsonobj.link}]});
+        })
+    } catch (e) {
+        console.log(e);
+    }
+};
+
+//random dog bird
+
+//gif search
+if(message.content.startsWith(curprefix + 'gifsearch')){
+    let cont = message.content.slice(1).split(" ");
+    let args = cont.slice(1);
+
+    try {
+        get('https://g.tenor.com/v1/search?q=' + encodeURIComponent(args.join(" "))  + "&key=" + tenortoken + "&limit=50").then(response => {
+            if (!response.body.results[0]) return SendErrorMessage(message, "Couldn't find any results :(");
+            let randnumb = Math.floor( Math.random() * response.body.results.length);
+            message.channel.send(response.body.results[randnumb].itemurl);
+        })
+    } catch (e) {
+        console.log(e);
+    }
+}
+//gif search end
+
+//random gif
+
+    if(message.content.startsWith(curprefix + 'gif') && !message.content.startsWith(curprefix + 'gifsearch')){
+        let cont = message.content.slice(1).split(" ");
+        let args = cont.slice(1);
+        try {
+            get('https://api.giphy.com/v1/gifs/random?q='+ "&api_key=" + giphytoken ).then(response => {
+
+                console.log(response.body.data.url);
+                if (response.body.data.rating == "r"){
+                    message.channel.send(response.body.data.url)
+                }else message.channel.send(response.body.data.url)
+            })
+        } catch (e) {
+            console.log(e);
+        }
+    }
+          
+
+//random gif end
+
+
+
+//random cat
+    if (message.content.startsWith(curprefix + 'cat') || message.content.startsWith(curprefix + 'pussy')) {
+        try {
+            get('https://aws.random.cat/meow').then(response => {
+                message.channel.send({files: [{attachment: response.body.file, name: `cat.${response.body.file.split('.')[4]}`}]});
+            })
+        } catch (e) {
+            console.log(e);
+        }
+    };
+//random cat end
+
+//ping(real)
+
+    if(message.content.startsWith(curprefix+"ping") && !message.content.startsWith(curprefix+"ping(real)")) {
+        var resMsg = await message.channel.send('_ _');
+        resMsg.edit('Pong! Took ' + Math.round((resMsg.createdTimestamp - message.createdTimestamp) - client.ws.ping).toString() + " ms"); //client.ping has been moved to the WebSocketManager under client.ws.ping
+    }
+
+//ping(real) end
+
+//cemalroulette
+
+    if(message.content.startsWith(curprefix+"cemalroulette") && message.guild.id == "486163617507573760") {
+        message.reply(`${Math.floor( Math.random() * 24)} hours, ${Math.floor( Math.random() * 59) + 1} minutes, ${Math.floor( Math.random() * 59) + 1} seconds.`)
+    }
+
+//cemalroulette end
 
 //dc someone
     if(message.content.startsWith(curprefix+"disconnect")){
+        if(!message.guild.me.hasPermission("MOVE_MEMBERS")) return SendErrorMessage(message, "I don't have the permission to do that!")
         let vcUser = message.mentions.members.first();
         if (!vcUser) return
         await message.guild.channels.create("voice-kick",{
@@ -158,9 +833,11 @@ client.on("message", async message  => {
 
     if(message.content.startsWith(curprefix+"votekick")){
         if(message.author.bot) return;
-        if (message.content.includes("@everyone")) return message.reply("You can't @everyone")
-        if (message.content.includes("@here")) return message.reply("You can't @here")
-        if(!message.mentions.members.first()) return message.reply("You didn't @ a person.");
+        if(!message.guild.me.hasPermission("KICK_MEMBERS")) return SendErrorMessage(message, "I don't have the permission to kick members!");
+        if (message.content.includes("@everyone")) return SendErrorMessage(message, "You can't @ everyone!");
+        if (message.content.includes("@here")) return SendErrorMessage(message, "You can't @ here!");
+        if(!message.mentions.members.first()) return SendErrorMessage(message, "You didn't @ a person!");
+        if(message.mentions.members.first().id == message.guild.me.id) return SendErrorMessage(message, "I can't kick myself!");
         if(notCooldown){
             notCooldown = false
             var member = message.mentions.members.first();
@@ -212,15 +889,17 @@ client.on("message", async message  => {
             
             });
             
-            client.on('message', message => {
-                return; //For now, gotta code more stuff later
-            });
-            
             async function makeDecision(){
                 if(voteKicks > voteStays){
                     message.channel.send(`Results: kick--> ${voteKicks} stay--> ${voteStays}`)
                     message.channel.send("Begone!")
-                    member.kick()
+                    if(message.mentions.members.first().id === message.guild.ownerID) return message.reply("I can't kick the owner of the server.")
+                    try  {
+                        member.kick();
+                    } catch(err) {
+                        console.log(err);
+                        message.channel.send(`An error occured while trying to kick **${message.mentions.members.first().displayName}**`)
+                    }
                     notCooldown = true
                     voteKicks = 0
                     voteStays = 0
@@ -237,12 +916,21 @@ client.on("message", async message  => {
 
 //votekick end
 
+//rock paper scissors
+
+    if(message.content.startsWith(curprefix+"rock") || message.content.startsWith(curprefix+"paper") || message.content.startsWith(curprefix+"scissors") ) {
+        rps(message);
+    }
+
+//rock paper scissors end
+
 //delete msg
     if (message.content.startsWith(curprefix+"clear")){
         let cont = message.content.slice(1).split(" ");
         let args = cont.slice(1);
-        if (!message.member.hasPermission("MANAGE_MESSAGES")) return message.reply("You don't have the permissions.");
-        if(isNaN(args[0])) return message.reply("How many messages do you want to clear?");
+        if (!message.member.hasPermission("MANAGE_MESSAGES")) return SendErrorMessage(message, "You don't have permisson to run this command!")
+        if(isNaN(args[0])) return SendErrorMessage(message)
+        if(args[0] <= 0 ) return SendErrorMessage(message)
         var fetched
         var amountofmsgs = 0
         while(args[0] > 99){
@@ -256,7 +944,7 @@ client.on("message", async message  => {
         console.log(`Fetched ${fetched.size} messages.`)
         amountofmsgs += fetched.size
         message.channel.bulkDelete(fetched).catch(error => message.reply(`Error occured: ${error}`));
-        message.channel.send(`Deleted ${amountofmsgs} messages.`)
+        SendSuccessMessage(message, `Deleted ${amountofmsgs} messages.`)
 
 
 
@@ -264,91 +952,6 @@ client.on("message", async message  => {
 
 //delete msg end
 
-//new level sytem 
-
-
-    if (!newxp[message.guild.id] && !message.author.bot){
-        let user = {
-            exp: 1,
-            lvl: 1
-        }
-        newxp[message.guild.id] = [
-            
-        ]
-        newxp[message.guild.id].push(message.author.id)     
-        newxp[message.guild.id].push(user)
-    };
-    someIndex = newxp[message.guild.id].indexOf(message.author.id);
-    if(!newxp[message.guild.id][someIndex+1].exp){
-        let user = {
-            exp: 1,
-            lvl: 1
-        }
-        newxp[message.guild.id].push(message.author.id)     
-        newxp[message.guild.id].push(user)
-    }
-
-
-    let curXP = newxp[message.guild.id][someIndex+1].exp;
-    let curLVL = newxp[message.guild.id][someIndex+1].lvl;
-    let XPreq = curLVL * 20;
-
-
-    newxp[message.guild.id][someIndex+1].exp += 1;
-
-    if(XPreq <= newxp[message.guild.id][someIndex+1].exp){
-        newxp[message.guild.id][someIndex+1].lvl += 1
-        let lvlupMSG = new Discord.MessageEmbed()
-        .setTitle("Level Up!")
-        .setColor("#d89ada")
-        .addField(`**${message.author.username}** just leveled up to ${curLVL + 1}`, ":)", true)
-        .setThumbnail(message.author.displayAvatarURL());
-
-        message.channel.send(lvlupMSG)
-    };
-
-    fs.writeFile("./exp.json", JSON.stringify(newxp, null, 4), (err)=>{
-        if(err) console.log(err);
-    });
-
-    if (message.content.startsWith(curprefix+"level") && !isCooldown){
-        if(!message.mentions.users.first()){
-            let XPNeeded = XPreq - curXP;
-            isCooldown = true;
-            let levelupMsg = new Discord.MessageEmbed()
-            .setTitle(`Current stats for **${message.author.username}**:            `)
-            .setColor("#d89ada")
-            .addField("Level: ", curLVL, true)
-            .addField("XP: ", curXP, true)
-            .setThumbnail(message.author.displayAvatarURL())
-            .setFooter(`${XPNeeded} xp until level up.`);
-
-            setTimeout(StopCooldown, 100)
-            message.channel.send(levelupMsg)//.then(msg => {msg.delete(200000)})
-        } else{
-            let otherId = (message.mentions.users.first().id)
-            let someIndexforOther = newxp[message.guild.id].indexOf(otherId);
-            let XPNeededforOther = (20*newxp[message.guild.id][someIndexforOther+1].lvl) - (newxp[message.guild.id][someIndexforOther+1].exp);
-            let curXPforOther = newxp[message.guild.id][someIndexforOther+1].exp;
-            let curLVLforOther = newxp[message.guild.id][someIndexforOther+1].lvl;
-            isCooldown = true;
-            let levelofMsgforOther = new Discord.MessageEmbed()
-            .setTitle(`Current stats for **${message.mentions.users.first().username}**:            `)
-            .setColor("#d89ada")
-            .addField("Level: ", curLVLforOther, true)
-            .addField("XP: ", curXPforOther, true)
-            .setThumbnail(message.mentions.users.first().displayAvatarURL())
-            .setFooter(`${XPNeededforOther} xp until ${message.mentions.users.first().username} levels up.`);
-    
-            setTimeout(StopCooldown, 100)
-            message.channel.send(levelofMsgforOther)
-        };
-
-
-    }
-
-
-//new level system end
 
 
 //lvl system
@@ -463,20 +1066,67 @@ client.on("message", async message  => {
 
 //lvl system end
 
+
 //send logs to channel start
 
     if(message.content.startsWith(curprefix+"sendlogs")){
         if (message.member.hasPermission("ADMINISTRATOR")){
-            message.channel.send("All the logs I have.", {
+            sentMessage = await message.channel.send("All the logs I have.", {
             files: [
                 "./guildlogs/"+message.guild.id.toString()+".txt"
             ]
         });
-        } else return message.reply("You don't have the necessary permissions.");
+        sentMessage.delete(10000);
+        } else return SendErrorMessage(message, "You don't have permission to do that!");
 
     }
 
 //send logs to channel end
+
+//help command for setreminder
+    if(message.content.startsWith(curprefix+"help setreminder")){
+        var randomlink = links.link[Math.floor(Math.random() * links.link.length)];
+        const randomColor = () => {
+            let color = '#';
+            for (let i = 0; i < 6; i++){
+               const random = Math.random();
+               const bit = (random * 16) | 0;
+               color += (bit).toString(16);
+            };
+            return color;
+         };
+        let helpmessage = new Discord.MessageEmbed()
+        .setThumbnail(randomlink.name)
+        .setTitle("Usage of " + curprefix+"setreminder")
+        .setColor(randomColor())
+        .addField(curprefix+"setreminder (Day) (Month) (Year) (Hour):(Minute)", "usage", false)
+        .addField(curprefix+"Day", "The day for the reminder. eg. 1,5,15,31 *Note: 01,02,03 etc. won't work*", false)
+        .addField(curprefix+"Month", "The month for the reminder eg. 1,3,6,9,11,12 *Note: 01,02,03 etc. won't work*", false)
+        .addField(curprefix+"Year", "The year for the reminder eg. 2023,2031,2069,2420", false)
+        .addField(curprefix+"Hour", "The hour for the reminder eg. 0,1,7,14,23 *Note: 24,01,02,03 etc. won't work*", false)
+        .addField(curprefix+"Minute", "The minute for the reminder eg. 0,1,31,50,59 *Note: 60,01,02,03 etc. won't work*", false)
+        
+        message.channel.send(helpmessage)
+    }
+//help command for setreminder end
+
+//help command for todo
+
+    if (message.content.startsWith(curprefix+"help todo")){
+        var randomlink = links.link[Math.floor(Math.random() * links.link.length)];
+        let helpmessage = new Discord.MessageEmbed()
+        .setThumbnail(randomlink.name)
+        .setTitle("Usage of " + curprefix+"todo")
+        .setColor("RANDOM")
+        .addField(curprefix+"todo", "Shows your current todo list", false)
+        .addField(curprefix+"todo add ...", "Adds ... to your todo list (Adds to the last place) eg. =todo add Something important", false)
+        .addField(curprefix+"todo remove (N)", "Removes the Nᵗʰ item from your list. eg =todo remove 3", false)
+        .addField(curprefix+"todo change (N) ...", "Changes the Nᵗʰ item to ... eg. =todo change 5 Something even more important", false);
+        message.channel.send(helpmessage)
+    }
+
+//help command for todo end
+
 //help command
     if(message.content.startsWith(curprefix+"bot?") && message.content != curprefix+"bot???") {
         var randomlink = links.link[Math.floor(Math.random() * links.link.length)];
@@ -492,87 +1142,451 @@ client.on("message", async message  => {
          };
         let helpmessage = new Discord.MessageEmbed()
         .setThumbnail(randomlink.name)
-        .setTitle("Bot nedir?? Nasıl Çalışır?? Commandler neler??")
+        .setTitle("Welcum to the help page")
         .setColor(randomColor())
         .setFooter("nig")
-        .addField(curprefix+"bot?", "This message you retard", true)
-        .addField(curprefix+"level", "Shows what your level is and how much xp you have.", true)
-        .addField(curprefix+"forlevel @user", "Show what user's level is and how much xp they have.", true)
-        .addField(curprefix+"changename @user 'insert user's new nickname here'", "Sets user's nickname to 'insert user's new nickname here'", true)
-        .addField(curprefix+"disconnect @user", "Disconnects the user from a voice channel", true)
-        .addField(curprefix+"votekick @user", "Opens a poll (that lasts 30 seconds) for the whole server to decide if they want user in the server or not.", true)
-        .addField(curprefix+"clear 'insert number of messages that need to be deleted here'", "Deletes 'insert number of messages that need to be deleted here' messages. (max 99 at a time)", true)
-        .addField(curprefix+"taş,=kağıt,=makas", "Taş Kağıt Makas *bruh*", true)
-        .addField(curprefix+"ping", "(not real)", true)
-        .addField(curprefix+"pingreal", "(real)", true)
-        .addField(curprefix+"russianroulette", "Russian Roulette *bruh*", true)
-        .addField(curprefix+"bot???", "cringe", true);
+        .addField(curprefix+"bot?", "This message you retard.", false)
+        .addField(curprefix+"level", "Shows what your level is and how much xp you have.", false)
+        .addField(curprefix+"sendlogs", "Sends message logs.(Admins only)", false)
+        .addField(curprefix+"play (link or search term)", "Joins your voice channel and plays audio.", false)
+        .addField(curprefix+"queue", "Shows server's current queue.", false)
+        .addField(curprefix+"skip", "Skips to the next track in queue.", false)
+        .addField(curprefix+"die", "Bot leaves the voice channel.", false)
+        .addField(curprefix+"weather (City name)", "Gets weather info about the given city.", false)
+        .addField(curprefix+"changename @user 'insert user's new nickname here'", "Sets user's nickname to 'insert user's new nickname here'(Leave empty to reset to original.)", false)
+        .addField(curprefix+"disconnect @user", "Disconnects the user from a voice channel", false)
+        .addField(curprefix+"todo", "Shows your todo list. If you need help use " + curprefix + "help todo", false)
+        .addField(curprefix+"setreminder", "Sets a reminder. If you need help use " + curprefix + "help setreminder", false)
+        .addField(curprefix+"votekick @user", "Opens a poll (that lasts 30 seconds) for the whole server to decide if they want user in the server or not.", false)
+        .addField(curprefix+"clear 'insert number of messages that need to be deleted here'", "Deletes 'insert number of messages that need to be deleted here' messages. (max 99 at a time)", false)
+        .addField(curprefix+"rock,=paper,=scissors", "rock paper scissors *bruh*", false)
+        .addField(curprefix+"cat", "random cat photo/gif", false)
+        .addField(curprefix+"dog", "random dog photo/gif", false)
+        .addField(curprefix+"bird", "random bird photo/gif", false)
+        .addField(curprefix+"randompic", "random photo", false)
+        .addField(curprefix+"gif", "random gif", false)
+        .addField(curprefix+"gifsearch (thing you want to search about but as a single word)", "search for a gif", false)
+        .addField(curprefix+"ping", "Shows ping.", false)
+        .addField(curprefix+"ping(real)", "(not real)", false)
+        .addField(curprefix+"russianroulette or rr", "Russian Roulette *You will die if you die*", false);
+        //.addField(curprefix+"bot???", "cringe", false)
         
         message.channel.send(helpmessage)
     }
-//help command
+//help command end
 
-//help command ama komik
-if(message.content.startsWith(curprefix+"komikbbot?")) {
-    let helpmessage = new Discord.MessageEmbed()
-    .setTitle("Bot nedir?? Nasıl Çalışır?? Commandler neler??")
-    .setColor("#00ffd2")
-    .setThumbnail("https://media.discordapp.net/attachments/795944276626243585/805905217753317486/dnendoruk.gif")
-    .setFooter("nig")
-    .addField(curprefix+"bot?", "This message you retard", true)
-    .addField(curprefix+"level (@user)", "Shows what user's level is and how much xp they have. (Optional)", true)
-    .addField(curprefix+"sendlogs", "Sends message logs.(Admins only)", true)
-    .addField(curprefix+"namechange @user 'insert user's new nickname here'", "Sets user's nickname to 'insert user's new nickname here'", true)
-    .addField(curprefix+"disconnect @user", "Disconnects the user from a voice channel", true)
-    .addField(curprefix+"votekick @user", "Opens a poll (that lasts 30 seconds) for the whole server to decide if they want user in the server or not.", true)
-    .addField(curprefix+"clear 'insert number of messages that need to be deleted here'", "Deletes 'insert number of messages that need to be deleted here' messages. (max 99 at a time)", true)
-    .addField(curprefix+"taş,=kağıt,=makas", "Taş Kağıt Makas *bruh*", true)
-    .addField(curprefix+"ping", "(not real)", true)
-    .addField(curprefix+"pingreal", "(real)", true)
-    .addField(curprefix+"russianroulette", "Russian Roulette *bruh*", true)
-    .addField(curprefix+"bot???", "cringe", true);
-    
-    message.channel.send(helpmessage)
-}
-//help command komik
+
+
+//russianroulette
+    if (message.content.startsWith(curprefix+"russianroulette") || message.content.startsWith(curprefix+"rr")){
+        let number = Math.floor( Math.random() * 5 + 1)
+        let number2 = Math.floor(Math.random() * 5 + 1)
+        if(!rrstreak[message.author.id]) {
+            rrstreak[message.author.id] = {
+                winstreak: 0,
+                losestreak: 0,
+                longestwin: 0,
+                longestloss: 0
+            };
+        }
+        if (number === number2){
+            rrstreak[message.author.id].losestreak += 1;
+            if(rrstreak[message.author.id].losestreak > rrstreak[message.author.id].longestloss){
+                rrstreak[message.author.id].longestloss = rrstreak[message.author.id].losestreak;
+            }
+            rrstreak[message.author.id].winstreak = 0;
+            let loseStreak = rrstreak[message.author.id].losestreak.toString();
+            let longestLoseStreak = rrstreak[message.author.id].longestloss.toString();
+            let longestWinStreak = rrstreak[message.author.id].longestwin.toString();
+            let deathMessage = new Discord.MessageEmbed()
+            .setTitle("Pow!")
+            .setColor("RANDOM")
+            .setFooter("Current lose streak: " + loseStreak + "\n Longest lose streak: " + longestLoseStreak + "\n Longest win streak: " + longestWinStreak)
+            .setDescription("You died :(");
+            message.channel.send(deathMessage);
+            if(!message.guild.me.hasPermission("KICK_MEMBERS")) return SendErrorMessage(message, "I don't have the permission to kick members!")
+            if(message.member.id != message.guild.ownerID){
+                try {
+                    message.member.kick();
+                } catch (err) {
+                    console.log(err);
+                    message.channel.send(`An error occured while trying to kick **${message.author.username}**`)
+                }
+            } else return SendErrorMessage(message, `An error occured while trying to kick **${message.author.username}**`);
+        } else{
+            rrstreak[message.author.id].losestreak = 0;
+            rrstreak[message.author.id].winstreak += 1;
+            if(rrstreak[message.author.id].winstreak > rrstreak[message.author.id].longestwin){
+                rrstreak[message.author.id].longestwin = rrstreak[message.author.id].winstreak;
+            }
+            let winStreak = rrstreak[message.author.id].winstreak.toString()
+            let longestLoseStreak = rrstreak[message.author.id].longestloss.toString();
+            let longestWinStreak = rrstreak[message.author.id].longestwin.toString();
+            let liveMessage = new Discord.MessageEmbed()
+            .setTitle("Click")
+            .setColor("RANDOM")
+            .setFooter("Current win streak: "+ winStreak + "\n Longest lose streak: " + longestLoseStreak + "\n Longest win streak: " + longestWinStreak)
+            .setDescription("You are still alive. For now...");
+            message.channel.send(liveMessage);
+        } //message.channel.send("*Click* Şimdilik hayattasın... ||"+"İlk sayı: "+ number.toString() + " " + "İkinci sayı: "+ number2.toString()+"||");
+        fs.writeFile("./rrStreaks.json", JSON.stringify(rrstreak, null, 4), (err)=>{
+            if(err) console.log(err);
+        });
+    }
+//russianroulette
+
+//setting a reminder 
+
+    if(message.content.startsWith(curprefix+"setreminder")){
+        let args = message.content.slice(1).split(" ").slice(1);
+        if (!args[0] || !args[1] || !args[2]|| !args[3]) return SendErrorMessage(message)
+        if (!reminder[allreminders] && !message.author.bot){
+            let data = {
+                Date: args[0]+" "+ (parseInt(args[1])-1).toString() + " " + args[2],
+                Time: args[3]
+            }
+            reminder[allreminders]=[
+
+            ]
+            reminder[allreminders].push(message.author.id + " " + message.channel.id);
+            reminder[allreminders].push(data);
+            message.reply("Reminder set for " + args[3] + " on " + args[0]+" "+ args[1] + " " + args[2])
+            return;
+        }
+        let userIndex = reminder[allreminders].indexOf(message.author.id + " " + message.channel.id);
+        if (reminder[allreminders][userIndex] != message.author.id + " " + message.channel.id && !message.author.bot){
+            let data = {
+                Date: args[0]+" "+ (parseInt(args[1])-1).toString() + " " + args[2],
+                Time: args[3]
+            }
+            reminder[allreminders].push(message.author.id + " " + message.channel.id);
+            reminder[allreminders].push(data);
+            message.reply("Reminder set for " + args[3] + " on " + args[0]+" "+ args[1] + " " + args[2])
+        } else{
+            reminder[allreminders][userIndex+1].Date = args[0]+" "+ (parseInt(args[1])-1).toString() + " " + args[2]
+            reminder[allreminders][userIndex+1].Time = args[3]
+            message.reply("Reminder changed. Current reminder is set for " + args[3] + " on " + args[0]+" "+ args[1] + " " + args[2])
+        } 
+        fs.writeFile("./reminders.json", JSON.stringify(reminder, null, 4), (err)=>{
+            if(err) console.log(err);
+        });
+
+    }
+
+//setting a reminder end
+
+//todo list
+
+    if(message.content.startsWith(curprefix+"todo")){
+        let args = message.content.slice(1).split(" ").slice(1);
+        if(!todolist[message.author.id] && !message.author.bot){
+            todolist[message.author.id] = [
+
+            ]
+        }
+        if(todolist[message.author.id] && !message.author.bot && !args[0]){
+            if(todolist[message.author.id].length <= 0) {
+                let nothinginlist = new Discord.MessageEmbed()
+                .setTitle("Uh oh! Something went wrong!")
+                .setColor("#f01717") 
+                .setDescription("Looks like you don't have anything in your todo list. If you need help, use " + curprefix + "help todo");
+                message.channel.send(nothinginlist)
+            } else {
+                const randomColor = () => {
+                    let color = '#';
+                    for (let i = 0; i < 6; i++){
+                       const random = Math.random();
+                       const bit = (random * 16) | 0;
+                       color += (bit).toString(16);
+                    };
+                    return color;
+                };
+                let usertodolist = {
+                    color: randomColor(),
+                    title: "Todo list for "+message.author.username,
+                    author: {
+                        name: message.author.username,
+                        icon_url: message.author.avatarURL()
+                    },
+                    fields: [
+
+                    ]
+                }
+                //let listmember = {
+                //    name: "",
+                //    value: "",
+                //    inline: false
+                //}
+                for(let i = 0; i < todolist[message.author.id].length; i++ ){
+                    //listmember.name = "Number " + (i+1).toString();
+                    //listmember.value = todolist[message.author.id][i].toString();
+                    usertodolist.fields.push({
+                        name: "Number " + (i+1).toString(),
+                        value: todolist[message.author.id][i].toString(),
+                        inline: false
+                    });
+                }
+                message.channel.send({embed: usertodolist});
+            }
+        } else if(todolist[message.author.id] && !message.author.bot && args[0] == "add"){
+            let addTodo = args.slice(1).join(" ");
+            if (!addTodo){
+                let failMessage = new Discord.MessageEmbed()
+                .setTitle("Uh oh! Something went wrong!")
+                .setColor("#f01717")
+                .setDescription("You can't add an empty string to your todo list!");
+                return message.channel.send(failMessage);
+            }
+            todolist[message.author.id].push(addTodo);
+            let addedMessage = new Discord.MessageEmbed()
+            .setTitle("Success!")
+            .setColor("#22ff00")
+            .setDescription(addTodo+" was added to your todo list.");
+            message.channel.send(addedMessage);
+            fs.writeFile("./todolist.json", JSON.stringify(todolist, null, 4), (err)=>{
+                if(err) console.log(err);
+            });
+        } else if(todolist[message.author.id] && !message.author.bot && args[0] == "remove"){
+            if (!args[1] || !Number.isInteger(parseInt(args[1]))){
+                let failMessage = new Discord.MessageEmbed()
+                .setTitle("Uh oh! Something went wrong!")
+                .setColor("#f01717")
+                .setDescription("You didn't specify which one to take off your todo list!");
+                return message.channel.send(failMessage);
+            }
+            let removedone = todolist[message.author.id][parseInt(args[1])-1];
+            todolist[message.author.id].splice(parseInt(args[1])-1, 1);
+            let removedMessage = new Discord.MessageEmbed()
+            .setTitle("Success!")
+            .setColor("#22ff00")
+            .setDescription(removedone +" was removed from your todo list.");
+            message.channel.send(removedMessage);
+            fs.writeFile("./todolist.json", JSON.stringify(todolist, null, 4), (err)=>{
+                if(err) console.log(err);
+            });
+        } else if(todolist[message.author.id] && !message.author.bot && args[0] == "change"){
+            if (!args[1] || !Number.isInteger(parseInt(args[1]))){
+                console.log(1);
+                let failMessage = new Discord.MessageEmbed()
+                .setTitle("Uh oh! Something went wrong!")
+                .setColor("#f01717")
+                .setDescription("You didn't specify which one to change!");
+                return message.channel.send(failMessage);
+            }
+            let changedTodo = args.slice(1).slice(1).join(" ");
+            if (!changedTodo){
+                let failMessage = new Discord.MessageEmbed()
+                .setTitle("Uh oh! Something went wrong!")
+                .setColor("#f01717")
+                .setDescription("You can't add an empty string to your todo list!");
+                return message.channel.send(failMessage);
+            }
+            changedone = todolist[message.author.id][parseInt(args[1])-1];
+            todolist[message.author.id].splice(parseInt(args[1])-1, 1);
+            todolist[message.author.id].push(changedTodo);
+            let changedMessage = new Discord.MessageEmbed()
+            .setTitle("Success!")
+            .setColor("#22ff00")
+            .setDescription(changedone + " was changed to " + changedTodo);
+            message.channel.send(changedMessage);
+            fs.writeFile("./todolist.json", JSON.stringify(todolist, null, 4), (err)=>{
+                if(err) console.log(err);
+            });
+        } 
+
+    }
+
+//todo list end
+
+//new level sytem 
+
+
+    if (!newxp[message.guild.id] && !message.author.bot){
+        let user = {
+            exp: 1,
+            lvl: 1
+        }
+        newxp[message.guild.id] = [
+
+        ]
+        newxp[message.guild.id].push(message.author.id)     
+        newxp[message.guild.id].push(user)
+    };
+    someIndex = newxp[message.guild.id].indexOf(message.author.id);
+    if(!newxp[message.guild.id][someIndex+1].exp){
+        let user = {
+            exp: 1,
+            lvl: 1
+        }
+        newxp[message.guild.id].push(message.author.id)     
+        newxp[message.guild.id].push(user)
+    }
+
+
+    let curXP = newxp[message.guild.id][someIndex+1].exp;
+    let curLVL = newxp[message.guild.id][someIndex+1].lvl;
+    let XPreq = Math.pow(2, curLVL) * 4
+
+
+    newxp[message.guild.id][someIndex+1].exp += 2;
+
+    if(XPreq <= newxp[message.guild.id][someIndex+1].exp){
+        newxp[message.guild.id][someIndex+1].lvl += 1
+        let lvlupMSG = new Discord.MessageEmbed()
+        .setTitle("Level Up!")
+        .setColor("#d89ada")
+        .addField(`**${message.author.username}** just leveled up to ${curLVL + 1}`, ":)", true)
+        .setThumbnail(message.author.displayAvatarURL());
+
+        message.channel.send(lvlupMSG)
+    };
+
+    fs.writeFile("./exp.json", JSON.stringify(newxp, null, 4), (err)=>{
+        if(err) console.log(err);
+    });
+
+    if (message.content.startsWith(curprefix+"level") && !isCooldown || message.content.startsWith(curprefix+"rank")){
+        if(!message.mentions.users.first()){
+            let XPNeeded = XPreq - curXP;
+            isCooldown = true;
+            let levelupMsg = new Discord.MessageEmbed()
+            .setTitle(`Current stats for **${message.author.username}**:            `)
+            .setColor("#d89ada")
+            .addField("Level: ", curLVL, true)
+            .addField("XP: ", curXP, true)
+            .setThumbnail(message.author.displayAvatarURL())
+            .setFooter(`${XPNeeded} xp until level up.`);
+
+            setTimeout(StopCooldown, 100)
+            message.channel.send(levelupMsg)//.then(msg => {msg.delete(200000)})
+        } else{
+            let otherId = (message.mentions.users.first().id)
+            let someIndexforOther = newxp[message.guild.id].indexOf(otherId);
+            let XPNeededforOther = (4*(Math.pow(2,newxp[message.guild.id][someIndexforOther+1].lvl))) - (newxp[message.guild.id][someIndexforOther+1].exp);
+            let curXPforOther = newxp[message.guild.id][someIndexforOther+1].exp;
+            let curLVLforOther = newxp[message.guild.id][someIndexforOther+1].lvl;
+            isCooldown = true;
+            let levelofMsgforOther = new Discord.MessageEmbed()
+            .setTitle(`Current stats for **${message.mentions.users.first().username}**:            `)
+            .setColor("#d89ada")
+            .addField("Level: ", curLVLforOther, true)
+            .addField("XP: ", curXPforOther, true)
+            .setThumbnail(message.mentions.users.first().displayAvatarURL())
+            .setFooter(`${XPNeededforOther} xp until ${message.mentions.users.first().username} levels up.`);
+
+            setTimeout(StopCooldown, 100)
+            message.channel.send(levelofMsgforOther)
+        };
+
+
+    }
+
+
+//new level system end
+
 
 });
 
 
-function play(connection, message){
-    var server = servers[message.guild.id];
+var timerID = setInterval(function(){
+    var date= new Date();
+    reminderlist = reminder[allreminders]
+    //console.log(reminderlist.length);
+    for (let i = 0; i < reminderlist.length;  i++){
+        if (i % 2 != 0){
+            //console.log(reminder[allreminders][i]);
+            let splitted = reminder[allreminders][i-1].split(" ")
+            //console.log(splitted)
+            if (reminder[allreminders][i].Date + " " + reminder[allreminders][i].Time == date.getDate() + " " + date.getMonth() + " " + date.getFullYear() + " " + date.getHours() + ":" + date.getMinutes()) {
+                chn = splitted[1]
+                client.channels.cache.get(chn).send(`<@${splitted[0]}>, your reminder.`)
+                reminder[allreminders].splice(i-1, 2)
+                fs.writeFile("./reminders.json", JSON.stringify(reminder, null, 4), (err)=>{
+                    if(err) console.log(err);
+                });
+            } //else console.log(reminder[allreminders][i].Date + " " + reminder[allreminders][i].Time +"     "+ date.getDate() + " " + date.getMonth() + " " + date.getFullYear() + " " + date.getHours() + ":" + date.getMinutes())
+        }
+        
+        //console.log(i);
 
-    server.dispatcher = connection.play(ytdl(server.queue[0], {filter: "audioonly"}), {
-        volume: 1
-    });
-
-    server.queue.shift();
-    server.dispatcher.on("error", console.error());
-    server.dispatcher.on("finish", function(){
-        if (server.queue[0]) play(connection, message);
-        else connection.disconnect();
-    });
-}
+    }
+},60 * 1000)
 
 
-var servers = {};
+
+//client.on("message", async message => {
+//    if(message.author.id != "394084798752227328") return;
+////russianroulette
+//if (message.content.startsWith(curprefix+"russianroulette") || message.content.startsWith(curprefix+"rr")){
+//    let number = Math.floor( Math.random() * 5 + 1)
+//    let number2 = Math.floor(Math.random() * 5 + 1)
+//    if(!rrstreak[message.author.id]) {
+//        rrstreak[message.author.id] = {
+//            winstreak: 0,
+//            losestreak: 0,
+//            longestwin: 0,
+//            longestloss: 0
+//        };
+//    }
+//    if (number === number2){
+//        rrstreak[message.author.id].losestreak += 1;
+//        if(rrstreak[message.author.id].losestreak > rrstreak[message.author.id].longestloss){
+//            rrstreak[message.author.id].longestloss = rrstreak[message.author.id].losestreak;
+//        }
+//        rrstreak[message.author.id].winstreak = 0;
+//        let loseStreak = rrstreak[message.author.id].losestreak.toString();
+//        let longestLoseStreak = rrstreak[message.author.id].longestloss.toString();
+//        let longestWinStreak = rrstreak[message.author.id].longestwin.toString();
+//        let deathMessage = new Discord.MessageEmbed()
+//        .setTitle("Pow!")
+//        .setColor("RANDOM")
+//        .setFooter("Current lose streak: " + loseStreak + "\n Longest lose streak: " + longestLoseStreak + "\n Longest win streak: " + longestWinStreak)
+//        .setDescription("You died :(");
+//        message.channel.send(deathMessage);
+//        if(message.member.id != message.guild.ownerID){
+//            try {
+//                message.member.kick();
+//            } catch (err) {
+//                console.log(err);
+//                message.channel.send(`An error occured while trying to kick **${message.author.username}**`)
+//            }
+//        } else return SendErrorMessage(message, `An error occured while trying to kick **${message.author.username}**`);
+//    } else{
+//        rrstreak[message.author.id].losestreak = 0;
+//        rrstreak[message.author.id].winstreak += 1;
+//        if(rrstreak[message.author.id].winstreak > rrstreak[message.author.id].longestwin){
+//            rrstreak[message.author.id].longestwin = rrstreak[message.author.id].winstreak;
+//        }
+//        let winStreak = rrstreak[message.author.id].winstreak.toString()
+//        let longestLoseStreak = rrstreak[message.author.id].longestloss.toString();
+//        let longestWinStreak = rrstreak[message.author.id].longestwin.toString();
+//        let liveMessage = new Discord.MessageEmbed()
+//        .setTitle("Click")
+//        .setColor("RANDOM")
+//        .setFooter("Current win streak: "+ winStreak + "\n Longest lose streak: " + longestLoseStreak + "\n Longest win streak: " + longestWinStreak)
+//        .setDescription("You are still alive. For now...");
+//        message.channel.send(liveMessage);
+//    } //message.channel.send("*Click* Şimdilik hayattasın... ||"+"İlk sayı: "+ number.toString() + " " + "İkinci sayı: "+ number2.toString()+"||");
+//    fs.writeFile("./rrStreaks.json", JSON.stringify(rrstreak, null, 4), (err)=>{
+//        if(err) console.log(err);
+//    });
+//}
+////russianroulette
+//})
+
 
 client.on("message" , message => {
+    
     console.log(message.content);
-    //log all messages
-    timestamp = message.createdTimestamp
-    d = new Date( timestamp );
-    var loggedText = "At " + d.getHours() + ":" + d.getMinutes() + ", " + d.toDateString()+ ", " + message.author.username + " said " + '"' + message.content + '"' + "\n"
-    fs.appendFile("./guildlogs/"+message.guild.id.toString()+".txt", loggedText, function (err) {
-        if (err) throw err;
-        console.log('File is created successfully.');
-    }); 
-    //log all messages end
-
+    if(message.author.bot) return;
+    if(message.guild === null) return;
+    //if(message.author.id == "394084798752227328") return;
 
 
     let person = message.author
     if((message.content.startsWith(`${curprefix}`))) {
+        if(message.author.bot) return;
+        if(message.guild === null) return;
         const broadcast = client.voice.createBroadcast();
         
         //message.channel.send(person + " "+ message.content + "                                                 " + "All hail Özateş...")
@@ -580,137 +1594,12 @@ client.on("message" , message => {
         let args = message.content.substring(curprefix.length).split(" ");
 
         switch (args[0]) {
-            //case "play":
-            //    if (!args[1]){
-            //        message.channel.send("Please provide a link!");
-            //        return;
-            //    };
-//
-            //    if(!message.member.voice.channel){
-            //        message.channel.send("You must be in a voice channel.");
-            //        return;
-            //    };
-//
-//
-//
-            //    if(!servers[message.guild.id]) servers[message.guild.id] = {
-            //        queue: []
-            //    };
-//
-            //    var server = servers[message.guild.id];
-            //    
-            //    server.queue.push(args[1]);
-//
-            //    if (message.member.voice.connection) break;
-            //    
-            //    if (!message.member.voice.connection) message.member.voice.channel.join().then(function(connection) {
-            //        play(connection, message);
-            //    });
-//
-            //    break;
-//
-            //case "skip":
-//
-            //    var server = servers[message.guild.id];
-//
-            //    if (server.dispatcher) server.dispatcher.end();
-//
-            //    break;
-            //case "stop":
-            //    var server = servers[message.guild.id];
-            //    if (message.guild.voice.channel) message.member.voice.connection.stop();
-            //    break;
-
-            case "ping".toLowerCase():
+            case "ping(real)".toLowerCase():
                 ping=Math.floor(Math.random() * 6931);
                 message.channel.send(`Ping is ${ping} `)
 
-                break;
-
-            case "pingreal".toLowerCase():
-                console.log(Date.now());
-                console.log(message.createdTimestamp);
-                console.log(message.createdAt.getTime());
-                message.channel.send(`Pong! <@${message.author.id}>. ${Math.round(client.ws.ping)}ms.`);
-
-                break;
-
-
-            //case "join".toLowerCase():
-//
-            //    if (!message.member.voice.channel) {
-            //        message.channel.send("Bir kanala gir...    All hail Özateş");
-            //        return;
-            //    }
-            //    if (!message.member.voice.connection) message.member.voice.channel.join().then(connection => {
-            //        broadcast.play('C:/Users/bartu/dbot/mediafiles/lmao.mp3');
-            //        const dispatcher = connection.play(broadcast);
-            //        const reciever = connection.createReceiver();
-            //        connection.on("speaking", (user, speaking) => {
-            //            if (speaking) {
-            //                console.log(`I'm listening to ${user}`)
-            //                const audioStream = reciever.createPCMStream(user)
-            //                const outputStream = generateOutputFile(message.member.voice.channel, user);
-            //                audioStream.pipe(outputStream);
-            //                outputStream.on("data", console.log);
-            //                setTimeout(() => { audioStream.off }, 6000)
-            //                if (speaking = false) {
-            //                    outputStream.end();
-            //                    audioStream.end();
-            //                }
-            //                audioStream.on('end', () => {
-            //                    console.log(`I'm no longer listening to ${user}`);
-            //                });
-            //            }
-            //        })
-            //    })
-            //    break;
-            case "Taş".toLowerCase():
-                var tkm = ["Taş" , "Kağıt" , "Makas"]
-                var rnd = tkm[Math.floor(Math.random() * tkm.length)];
-                message.channel.send(rnd)
-                if(rnd === "Taş"){
-                    message.channel.send("Berabere")
-                }
-                if(rnd === "Makas"){
-                    message.channel.send("Kazandın...")
-                }
-                if(rnd === "Kağıt"){
-                    message.channel.send("Kaybettin. Ağla.")
-                }
-            break;
-
-            case "Kağıt".toLowerCase():
-                var tkm = ["Taş" , "Kağıt" , "Makas"]
-                var rnd = tkm[Math.floor(Math.random() * tkm.length)];
-                message.channel.send(rnd)
-                if(rnd === "Taş"){
-                    message.channel.send("Kazandın...")
-                }
-                if(rnd === "Makas"){
-                    message.channel.send("Kaybettin. Ağla.")
-                }
-                if(rnd === "Kağıt"){
-                    message.channel.send("Berabere...")
-                }
-            break;
-
-            case "Makas".toLowerCase():
-                var tkm = ["Taş" , "Kağıt" , "Makas"]
-                var rnd = tkm[Math.floor(Math.random() * tkm.length)];
-                message.channel.send(rnd)
-                if(rnd === "Taş"){
-                    message.channel.send("Kaybettin. Ağla.")
-                }
-                if(rnd === "Makas"){
-                    message.channel.send("Berabere...")
-                }
-                if(rnd === "Kağıt"){
-                    message.channel.send("Kazandın...")
-                }
-            break;
-
             case "biatch" :
+                if(message.guild.id != "486163617507573760") return;
                 let chan = client.channels.get("671436172530286592")
                 chan.join("671436172530286592").then(connection => {
                     broadcast.play('C:/Users/bartu/dbot/mediafiles/out.wav');
@@ -719,28 +1608,17 @@ client.on("message" , message => {
                   .catch(console.error);
                 setTimeout(()=> {chan.leave()}, 2500)   
             
-            break;
-
-
-            case "RussianRoulette".toLowerCase():
-                let number = Math.floor( Math.random() * 10 + 1)
-                let number2 = Math.floor(Math.random() * 10 + 1)
-                
-                if (number === number2){
-                    message.channel.send("Pow! Öldün :(");
-                } else message.channel.send("*Click* Şimdilik hayattasın... ||"+"İlk sayı: "+ number.toString() + " " + "İkinci sayı: "+ number2.toString()+"||");
-                    
-                
-            break;
+                break;
 
             case "Bot???".toLowerCase():
-                message.channel.send("Bot?????? , Bot nedir??? Nasıl kullanılır???" + " " + "=dorukæum , =karrı , =çıkış , =dolunay , =egeæum , =öl(bot çıkar) , =russianroulette , =p , Taş kağıt makas oynamak için (=taş , =kağıt , =makas) , =ping(real) , =kick , =play , =disconnect(admin abuse dimi kel dork) , =changename(admin abuse kel dorku) , ")
+                if(message.guild.id != "486163617507573760") return;
+                message.channel.send("Bot?????? , Bot nedir??? Nasıl kullanılır???" + " " + "=dorukæum , =karrı , =çıkış , =dolunay , =egeæum , =öl(bot çıkar) , =russianroulette , =p , rock paper scissors oynamak için (=rock , =paper , =scissors) , =ping(real) , =kick , =play , =disconnect(admin abuse dimi kel dork) , =changename(admin abuse kel dorku) , ")
 
-            break;
+                break;
 
             case "özateş".toLowerCase():
 
-                
+                if(message.guild.id != "486163617507573760") return;
 
                 if(!message.member.voice.channel){
                     message.channel.send("Bir kanala gir...    All hail Özateş");
@@ -753,10 +1631,10 @@ client.on("message" , message => {
                   .catch(console.error);
                 setTimeout(()=> {message.member.voice.channel.leave()}, 7000)   
             
-            break;
+                break;
             case "zekikardeşim".toLowerCase():
 
-                
+                if(message.guild.id != "486163617507573760") return;
 
                 if(!message.member.voice.channel){
                     message.channel.send("Bir kanala gir...    All hail Özateş");
@@ -769,12 +1647,12 @@ client.on("message" , message => {
                   .catch(console.error);  
                 setTimeout(()=> {message.member.voice.channel.leave()}, 9800)   
             
-            break;
+                break;
 
             
             case "dorukæum".toLowerCase():
 
-                
+                if(message.guild.id != "486163617507573760") return;
 
                 if(!message.member.voice.channel){
                     message.channel.send("Bir kanala gir...    All hail Özateş");
@@ -790,11 +1668,11 @@ client.on("message" , message => {
                 
                 
             
-            break;
+                break;
 
             case "gay".toLowerCase():
 
-                
+                if(message.guild.id != "486163617507573760") return;
 
                 if(!message.member.voice.channel){
                     message.channel.send("Bir kanala gir...    All hail Özateş");
@@ -810,12 +1688,12 @@ client.on("message" , message => {
                 
                 
             
-            break;
+                break;
 
 
             case "defaultdance".toLowerCase():
 
-                
+                if(message.guild.id != "486163617507573760") return;
 
                 if(!message.member.voice.channel){
                     message.channel.send("Bir kanala gir...    All hail Özateş");
@@ -831,11 +1709,11 @@ client.on("message" , message => {
                 
                 
             
-            break;
+                break;
 
             case "jbruh".toLowerCase():
 
-                
+                if(message.guild.id != "486163617507573760") return;
 
                 if(!message.member.voice.channel){
                     message.channel.send("Bir kanala gir...    All hail Özateş");
@@ -851,10 +1729,10 @@ client.on("message" , message => {
                 
                 
             
-            break;
+                break;
 
             case "n-word".toLowerCase():
-
+                if(message.guild.id != "486163617507573760") return;
                 
 
                 if(!message.member.voice.channel){
@@ -871,10 +1749,10 @@ client.on("message" , message => {
                 
                 
             
-            break;
+                break;
             case "karrı".toLowerCase():
 
-                
+                if(message.guild.id != "486163617507573760") return;
 
                 if(!message.member.voice.channel){
                     message.channel.send("Bir kanala gir...    All hail Özateş");
@@ -890,12 +1768,12 @@ client.on("message" , message => {
                 
                 
             
-            break;
+                break;
 
 
             case "çıkış".toLowerCase():
 
-                
+                if(message.guild.id != "486163617507573760") return;
 
                 if(!message.member.voice.channel){
                     message.channel.send("Bir kanala gir...    All hail Özateş");
@@ -911,11 +1789,11 @@ client.on("message" , message => {
                 
                 
             
-            break;
+                break;
 
             case "bruh".toLowerCase():
 
-                
+                if(message.guild.id != "486163617507573760") return;
 
                 if(!message.member.voice.channel){
                     message.channel.send("Bir kanala gir...    All hail Özateş");
@@ -931,7 +1809,7 @@ client.on("message" , message => {
                 
                 
             
-            break;
+                break;
 
 
             case "dolunay".toLowerCase():
@@ -951,15 +1829,38 @@ client.on("message" , message => {
                 setTimeout(()=> {message.member.voice.channel.leave()}, 3 * 60 * 1000)    
             
             
-            break;
+                break;
+
+            case "leave".toLowerCase():
+                message.member.voice.channel.leave();
+                servers[message.guild.id].queue = [];
+                playingTrack = false;
+                looping = false;
+                break;
+            case "fuckoff".toLowerCase():
+                message.member.voice.channel.leave()
+                servers[message.guild.id].queue = [];
+                playingTrack = false;
+                looping = false;
+                break;
+
+            case "die".toLowerCase():
+                message.member.voice.channel.leave()
+                servers[message.guild.id].queue = [];
+                playingTrack = false;
+                looping = false;
+                break;
 
             case "öl".toLowerCase():
                 message.member.voice.channel.leave()
+                servers[message.guild.id].queue = [];
+                playingTrack = false;
+                looping = false;
                 break;
 
 
             case "egeæum".toLowerCase():
-                
+                if(message.guild.id != "486163617507573760") return;
 
                 if(!message.member.voice.channel){
                     message.channel.send("Bir kanala gir...    All hail Özateş");
@@ -976,10 +1877,10 @@ client.on("message" , message => {
                 
                 
             
-            break;
+                break;
 
             case "sksksk".toLowerCase():
-
+                if(message.guild.id != "486163617507573760") return;
                 
 
                 if(!message.member.voice.channel){
@@ -996,10 +1897,10 @@ client.on("message" , message => {
                 
                 
             
-            break;
+                break;
 
             case "gæymer".toLowerCase():
-
+                if(message.guild.id != "486163617507573760") return;
                 
 
                 if(!message.member.voice.channel){
@@ -1016,11 +1917,11 @@ client.on("message" , message => {
                 
                 
             
-            break;
+                break;
 
             case "biçenæum".toLowerCase():
 
-                
+                if(message.guild.id != "486163617507573760") return;
 
                 if(!message.member.voice.channel){
                     message.channel.send("Bir kanala gir...    All hail Özateş");
@@ -1036,12 +1937,12 @@ client.on("message" , message => {
                 
                 
             
-            break;
+                break;
 
 
             case "nigga".toLowerCase():
 
-                
+                if(message.guild.id != "486163617507573760") return;
 
                 if(!message.member.voice.channel){
                     message.channel.send("Bir kanala gir...    All hail Özateş");
@@ -1057,11 +1958,11 @@ client.on("message" , message => {
                 
                 
             
-            break;
+                break;
 
             case "bruhlovania".toLowerCase():
 
-                
+                if(message.guild.id != "486163617507573760") return;
 
                 if(!message.member.voice.channel){
                     message.channel.send("Bir kanala gir...    All hail Özateş");
@@ -1077,39 +1978,45 @@ client.on("message" , message => {
                 
                 
             
-            break;
+                break;
 
 
 
             
 
             case "Zeka".toLowerCase():
+                if(message.guild.id != "486163617507573760") return;
                 message.channel.send("Zeka" , {files: ["./mediafiles/bbbruh.png"]})
-            break;
+                break;
 
             case "Börke".toLowerCase():
+                if(message.guild.id != "486163617507573760") return;
                 message.channel.send("clasl3örlce" , {files: ["./mediafiles/börke.png"]})
-            break;
+                break;
 
             case "Börke2".toLowerCase():
+                if(message.guild.id != "486163617507573760") return;
                 message.channel.send("clasl3örlce" , {files: ["./mediafiles/börke2.png"]})
-            break;
+                break;
 
             case "lordandsaviour".toLowerCase():
+                if(message.guild.id != "486163617507573760") return;
                 message.channel.send("Our Lord and Saviour" , {files: ["./mediafiles/lord.png"]})
-            break;
+                break;
 
             case "ceyhunkim".toLowerCase():
+                if(message.guild.id != "486163617507573760") return;
                 message.channel.send("Ceyhun" , {files: ["./mediafiles/nig.jpg"]})
-            break;
+                break;
 
             case "ceyhunkim2".toLowerCase():
+                if(message.guild.id != "486163617507573760") return;
                 message.channel.send("Ceyhun" , {files: ["./mediafiles/nig2.jpg"]})
-            break;
+                break;
 
             case "p".toLowerCase():
 
-                
+                if(message.guild.id != "486163617507573760") return;
 
                 if(!message.member.voice.channel){
                     message.channel.send("Bir kanala gir...    All hail Özateş");
@@ -1126,7 +2033,7 @@ client.on("message" , message => {
                 
                 
             
-            break;
+                break;
         }
 
     }
