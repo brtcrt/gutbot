@@ -12,10 +12,7 @@ const cheerio = require("cheerio")
 const client = new Discord.Client () ;
 const ytdl = require('ytdl-core-discord');
 const ytsr = require('ytsr');
-const {get} = require("snekfetch");
 const helpcommand = require("./help_commands.json");
-let i = 0;
-let b = 0;
 client.db = require("quick.db");
 client.request = new (require("rss-parser"))();
 var fs = require('fs');
@@ -40,6 +37,9 @@ let currentlyPaused = false
 let rrstreak = require("./rrStreaks.json")
 let loopingDetails
 let lyricsURL
+
+
+client.on("error", console.error);
 
 function StopCooldown(){
     isCooldown = false;
@@ -167,7 +167,7 @@ async function playNewTrack(message, loopingTrack){
     startedMessage = new Discord.MessageEmbed()
         .setTitle("Now Playing:")
         .setColor("RANDOM")
-        .setDescription(`[${nextTrack.title}](${nextTrackURL})  -  [${nextTrack.channelname}](${nextTrack.channelurl})`)
+        .setDescription(`[${nextTrack.title.toString()}](${nextTrackURL})  -  [${nextTrack.channelname.toString()}](${nextTrack.channelurl})`)
         .setThumbnail(nextTrack.thumbnail);
     console.log('Now playing!');
     message.channel.send(startedMessage);
@@ -238,6 +238,7 @@ client.on("message", async message  => {
         });
     }
     curprefix = prefixes[message.guild.id].prefix
+    if(message.content.startsWith(curprefix) && !message.channel.permissionsFor(client.user).toArray().includes("SEND_MESSAGES")) return message.author.send("I don't have permission to send messages there!");
     if(message.content.startsWith(curprefix+"changePrefix")){
         let newprefix = message.content.slice(1).split(" ");
         prefixes[message.guild.id].prefix = newprefix[1]
@@ -361,6 +362,7 @@ client.on("message", async message  => {
 //play 
 
     if (message.content.startsWith(curprefix+"play")){
+        if(!message.guild.me.hasPermission("ADMINISTRATOR")) return SendErrorMessage(message, "I need to have administrator to run this command!");
         if(!message.member.voice.channel){
             SendErrorMessage(message, "You need to be in a voice channel to run this command.")
             return;
@@ -521,13 +523,13 @@ client.on("message", async message  => {
 
 //get weather info
     if(message.content.startsWith(curprefix+"weather")){
+        let sent = await message.channel.send("Getting weather info...");
         let cont = message.content.slice(1).split(" ").slice(1);
         let cityName = cont.join(" ");
         let currentWeather;
         let degree;
         let degreeFeels;
         let location;
-        let minMax;
         let Body;
         if (!cont) return SendErrorMessage(message, "You didn't give a city name!");
         const options = {
@@ -541,7 +543,7 @@ client.on("message", async message  => {
             },
             mode: "JSON"
         };
-        request(options, function (error, response, body) {
+        await request(options, async function (error, response, body) {
             if (error) throw new Error(error);
             Body = JSON.parse(body);
             console.log(Body);
@@ -563,7 +565,7 @@ client.on("message", async message  => {
                 {name: "Min/Max Temp:", value: minMax, inline: true}
             )
             .setColor("RANDOM");
-            message.channel.send(weatherMessage);
+            await sent.edit(weatherMessage);
         });
 
 
@@ -573,7 +575,6 @@ client.on("message", async message  => {
 //change name
     if(message.content.startsWith(curprefix+"changename")){
         args = args.slice(1);
-
         let theGuy = message.mentions.members.first();
         if(!theGuy)return SendErrorMessage(message, "You didn't @ a person!");
         if (!args) return SendErrorMessage(message, "You didn't give a new nickname for the person!");
@@ -585,7 +586,9 @@ client.on("message", async message  => {
 
 //random image
     if (message.content.startsWith(curprefix + 'randompic')) {
-        message.channel.send("https://picsum.photos/"+ (Math.floor(Math.random() * 3000).toString()));
+        let sentMessage = await message.channel.send("Getting random pic...");
+        let randomimgLink = "https://picsum.photos/"+ (Math.floor(Math.random() * 3000).toString());
+        await sentMessage.edit(randomimgLink);
     };
 
 //random image end
@@ -603,11 +606,11 @@ client.on("message", async message  => {
 //random dog
 
 if (message.content.startsWith(curprefix + 'dog')) {
+    let sent = await message.channel.send("Getting dog pic...");
     try {
-        get('https://random.dog/woof.json').then(response => {
-            let jsonobj = response.body
-            message.channel.send({files: [{attachment: jsonobj.url}]});
-        })
+        const response = await nodefetch("https://some-random-api.ml/img/dog");
+        const body = await response.json();
+        sent.edit(body.link);
     } catch (e) {
         console.log(e);
     };
@@ -618,11 +621,11 @@ if (message.content.startsWith(curprefix + 'dog')) {
 //random bird
 
 if (message.content.startsWith(curprefix + 'bird')) {
+    let sent = await message.channel.send("Getting bird pic...");
     try {
-        get('https://some-random-api.ml/img/birb').then(response => {
-            let jsonobj = response.body
-            message.channel.send({files: [{attachment: jsonobj.link}]});
-        })
+        const response = await nodefetch("https://some-random-api.ml/img/birb");
+        const body = await response.json();
+        sent.edit(body.link);
     } catch (e) {
         console.log(e);
     };
@@ -632,12 +635,13 @@ if (message.content.startsWith(curprefix + 'bird')) {
 
 //gif search
 if(message.content.startsWith(curprefix + 'gifsearch')){
+    let sent = await message.channel.send(`Searching for "${args.join(" ")}"...`);
     try {
-        get('https://g.tenor.com/v1/search?q=' + encodeURIComponent(args.join(" "))  + "&key=" + tenortoken + "&limit=50").then(response => {
-            if (!response.body.results[0]) return SendErrorMessage(message, "Couldn't find any results :(");
-            let randnumb = Math.floor( Math.random() * response.body.results.length);
-            message.channel.send(response.body.results[randnumb].itemurl);
-        })
+        const response = await nodefetch('https://g.tenor.com/v1/search?q=' + encodeURIComponent(args.join(" "))  + "&key=" + tenortoken + "&limit=50");
+        const body = await response.json();
+        if (!body.results[0]) return SendErrorMessage(message, "Couldn't find any results :(");
+        let randnumb = Math.floor( Math.random() * body.results.length);
+        sent.edit(body.results[randnumb].itemurl);
     } catch (e) {
         console.log(e);
     };
@@ -647,14 +651,11 @@ if(message.content.startsWith(curprefix + 'gifsearch')){
 //random gif
 
     if(message.content.startsWith(curprefix + 'gif') && !message.content.startsWith(curprefix + 'gifsearch')){
+        let sent = await message.channel.send("Getting a random gif...");
         try {
-            get('https://api.giphy.com/v1/gifs/random?q='+ "&api_key=" + giphytoken ).then(response => {
-
-                console.log(response.body.data.url);
-                if (response.body.data.rating == "r"){
-                    message.channel.send(response.body.data.url);
-                }else message.channel.send(response.body.data.url);
-            })
+            const response = await nodefetch('https://api.giphy.com/v1/gifs/random?q='+ "&api_key=" + giphytoken );
+            const body = await response.json();
+            sent.edit(body.data.url);
         } catch (e) {
             console.log(e);
         };
@@ -667,10 +668,11 @@ if(message.content.startsWith(curprefix + 'gifsearch')){
 
 //random cat
     if (message.content.startsWith(curprefix + 'cat') || message.content.startsWith(curprefix + 'pussy')) {
+        let sent = await message.channel.send("Getting a random cat pic...");
         try {
-            get('https://aws.random.cat/meow').then(response => {
-                message.channel.send({files: [{attachment: response.body.file, name: `cat.${response.body.file.split('.')[4]}`}]});
-            })
+            const response = await nodefetch("https://some-random-api.ml/img/cat");
+            const body = await response.json();
+            sent.edit(body.link);
         } catch (e) {
             console.log(e);
         };
@@ -698,6 +700,10 @@ if(message.content.startsWith(curprefix + 'gifsearch')){
     if(message.content.startsWith(curprefix+"disconnect")){
         if(!message.guild.me.hasPermission("MOVE_MEMBERS")) return SendErrorMessage(message, "I don't have the permission to do that!");
         let vcUser = message.mentions.members.first();
+        if (message.content.includes("@everyone")) return SendErrorMessage(message, "You can't @ everyone!");
+        if (message.content.includes("@here")) return SendErrorMessage(message, "You can't @ here!");
+        if(!message.mentions.members.first()) return SendErrorMessage(message, "You didn't @ a person!");
+        if(!vcUser.voice.connection) return SendErrorMessage(message, "That user isn't connected to a voice channel!")
         if (!vcUser) return;
         await message.guild.channels.create("voice-kick",{
             type:  "voice",
@@ -724,12 +730,16 @@ if(message.content.startsWith(curprefix + 'gifsearch')){
         if(!message.mentions.members.first()) return SendErrorMessage(message, "You didn't @ a person!");
         if(message.mentions.members.first().id == message.guild.me.id) return SendErrorMessage(message, "I can't kick myself!");
         if(notCooldown){
+            const voteMsg = {
+                title: `Vote to kick **${message.mentions.members.first().displayName}**`,
+                description: "React with ✅ for the member to get kicked. React with ⛔ for the member to stay.",
+                color: "RANDOM"
+            }; 
             notCooldown = false;
             var member = message.mentions.members.first();
-            const kickMsg = await message.channel.send(`Vote to kick <@${member.id}>`);
+            const kickMsg = await message.channel.send({embed: voteMsg});
             await kickMsg.react("✅");
             await kickMsg.react("⛔");
-            await message.channel.send("React with ✅ for the member to get kicked. React with ⛔ for the member to stay.");
             await setTimeout(makeDecision, 30000);
             client.on('messageReactionAdd', async (reaction) => {
                 try {
@@ -776,9 +786,24 @@ if(message.content.startsWith(curprefix + 'gifsearch')){
             
             async function makeDecision(){
                 if(voteKicks > voteStays){
-                    message.channel.send(`Results: kick--> ${voteKicks} stay--> ${voteStays}`);
-                    message.channel.send("Begone!");
-                    if(message.mentions.members.first().id === message.guild.ownerID) return message.reply("I can't kick the owner of the server.");
+                    const kickMsg = {
+                        title: `**Begone!** ***${message.mentions.members.first().displayName}***`,
+                        fields: [
+                            {
+                                name: "Votes for kick:",
+                                value: voteKicks,
+                                inline: true
+                            },
+                            {
+                                name: "Votes for stay:",
+                                value: voteStays,
+                                inline: true
+                            }
+                        ],
+                        color: "RANDOM"
+                    };  
+                    message.channel.send({embed: kickMsg});
+                    if(message.mentions.members.first().id === message.guild.ownerID) return SendErrorMessage(message, "I can't kick the owner of the server.");
                     try  {
                         member.kick();
                     } catch(err) {
@@ -789,8 +814,23 @@ if(message.content.startsWith(curprefix + 'gifsearch')){
                     voteKicks = 0;
                     voteStays = 0;
                 } else{
-                    message.channel.send(`Results: kick--> ${voteKicks} stay--> ${voteStays}`);
-                    message.channel.send("You stay...");
+                    const stayMsg = {
+                        title: `**You stay** ***${message.mentions.members.first().displayName}***...`,
+                        fields: [
+                            {
+                                name: "Votes for kick:",
+                                value: voteKicks,
+                                inline: true
+                            },
+                            {
+                                name: "Votes for stay:",
+                                value: voteStays,
+                                inline: true
+                            }
+                        ],
+                        color: "RANDOM"
+                    };  
+                    message.channel.send({embed: stayMsg});
                     notCooldown = true;
                     voteKicks = 0;
                     voteStays = 0;
@@ -811,6 +851,7 @@ if(message.content.startsWith(curprefix + 'gifsearch')){
 
 //delete msg
     if (message.content.startsWith(curprefix+"clear")){
+        if(!message.guild.me.hasPermission("ADMINISTRATOR")) return SendErrorMessage(message, "I need to have administrator to run this command!");
         if (!message.member.hasPermission("MANAGE_MESSAGES")) return SendErrorMessage(message, "You don't have permisson to run this command!");
         if(isNaN(args[0])) return SendErrorMessage(message);
         if(args[0] <= 0 ) return SendErrorMessage(message);
@@ -840,8 +881,10 @@ if(message.content.startsWith(curprefix + 'gifsearch')){
             files: [
                 "./guildlogs/"+message.guild.id.toString()+".txt"
             ]
-        });
-        sentMessage.delete(10000);
+        }).then(async msg => {
+            await msg.attachments.delete({ timeout: 5000 });
+            await msg.delete({ timeout: 5000 });
+        })
         } else return SendErrorMessage(message, "You don't have permission to do that!");
 
     }
@@ -895,6 +938,7 @@ if(message.content.startsWith(curprefix + 'gifsearch')){
 //new help
 
     if(message.content.startsWith(curprefix+"bot?")){
+        if(!message.guild.me.hasPermission("MANAGE_MESSAGES")) return SendErrorMessage(message, "I don't have the permission to do that! (Permission req. --> MANAGE_MESSAGES.)")
         var randomlink = links.link[Math.floor(Math.random() * links.link.length)];
         const randomColor = () => {
             let color = '#';
@@ -1239,10 +1283,12 @@ var timerID = setInterval(function(){
 
 
 client.on("message" , message => {
-    
-    console.log(message.content);
+    timestamp = message.createdTimestamp;
+    d = new Date( timestamp );
+    console.log("At " + d.getHours() + ":" + d.getMinutes() + ", " + d.toDateString()+ ", " + message.author.username + " said " + '"' + message.content + '"' );
     if(message.author.bot) return;
     if(message.guild === null) return;
+    if(!message.channel.permissionsFor(client.user).toArray().includes("SEND_MESSAGES")) return;
     if((message.content.startsWith(`${curprefix}`))) {
         const broadcast = client.voice.createBroadcast();
         let args = message.content.substring(curprefix.length).split(" ");
@@ -1424,6 +1470,6 @@ client.on("message" , message => {
 
     };
 });
-client.on("error", (err) => {console.log(err)});
+
 
 client.login(token);
